@@ -1,338 +1,352 @@
-# Phase 1 실행 액션플랜
+# 정기그래픽 자동화 액션플랜 v2
 
-> **목표**: 아티클 URL → Buzz용 XLSX 전 과정 자동화  
-> **기대 효과**: 수작업 2~3시간 → 스크립트 5분 + 검수 10분  
+> **목표**: Ghost CMS → Claude 텍스트 처리 → Talk to Figma MCP로 카드뉴스 완성까지 자동화  
+> **기대 효과**: 수작업 2~3시간 → 스크립트 실행 + 검수 15분  
 > **작성일**: 2026-03-14  
-> **최종 수정**: 2026-03-14 (전체 진행 상황 반영)
+> **최종 수정**: 2026-03-15 (Phase 0 진행 상황 반영)
 
 ---
 
-## 현재 진행 상황 요약
+## 아키텍처 변경 요약
 
-| 항목 | 상태 |
-|---|---|
-| Ghost API 검증 | ✅ 정상 동작 확인 |
-| Ghost API excerpt 구조 확인 | ✅ custom_excerpt는 부제목용, 서문은 html에서 추출 |
-| Python 스크립트 초안 | ✅ `generate_graphics.py` 338줄 작성 완료 |
-| 서문 분할 기준 확정 | ✅ 231호 7페이지 실데이터 분석 완료 |
-| 서문 분할 프롬프트 | ✅ 실데이터 기반으로 SPLIT_PROMPT 업데이트 완료 |
-| extract_intro() 수정 | ✅ h3/h4/hr 종료 마커 추가 완료 |
-| Claude API 연동 테스트 | ✅ 10개 아티클 일괄 분할 성공 ($0.011) |
-| GitHub 레포 | ✅ `choiseongh/antiegg-graphics-automation` 생성 + 초기 push |
-| .env 설정 | ✅ ANTHROPIC_API_KEY 설정 완료 |
-| Buzz 텍스트 XLSX import | ✅ 정상 동작 확인 |
-| Buzz XLSX 이미지 셀 삽입 | ❌ 불가 확인 → 이미지는 수동 유지 확정 |
-| 콘텐츠 유형 입력 방식 | ⚠️ tags에 유형 없음 확인. urls.txt 수동 입력 또는 Notion 연동 필요 |
-| 제목/부제목 2줄 버전 생성 | ⬜ 프롬프트 통합 방식 확정됨, 구현 필요 |
-
-### 기존 스크립트 (`generate_graphics.py`) 수정 필요 사항
-
-| # | 현재 | 변경 필요 | 상태 |
-|---|---|---|---|
-| 1 | `--slugs` 또는 `--limit`으로 입력 | `--input urls.txt` 추가 (URL+유형 쌍) | ⬜ |
-| 2 | `extract_content_type()` — tags에서 유형 검색 | urls.txt에서 유형 읽기로 변경 | ⬜ |
-| 3 | `extract_intro()` — h2/h3/h4/hr 이전 p 태그 수집 | ✅ 수정 완료, 실데이터 검증 통과 | ✅ |
-| 4 | 이미지 URL만 저장 | **이미지 셀 삽입 불가 확정** → URL 유지 | ❌ 불가 |
-| 5 | `.env` 로딩 없음 | `load_dotenv()` 추가 필요 | ⬜ |
-| 6 | 서문 분할만 Claude API 호출 | 제목/부제목 2줄 버전도 함께 생성하도록 프롬프트 통합 | ⬜ |
-| 7 | XLSX에 제목/부제목 1줄만 | 제목_2줄, 부제목_2줄 컬럼 추가 | ⬜ |
-
----
-
-## 0. 사전 검증 (구현 전에 반드시 먼저)
-
-> 전체 판단 완료. 이미지 셀 삽입 불가 → 텍스트만 자동화.
-
-| # | 태스크 | 상태 | 결과 |
-|---|---|---|---|
-| 0-1 | **Ghost API 실호출 테스트** | ✅ 완료 | 정상 동작 |
-| 0-2 | **Ghost API 응답에서 excerpt 필드 확인** | ✅ 완료 | custom_excerpt는 부제목, 서문은 html에서 추출 |
-| 0-3 | **Buzz XLSX 이미지 인식 테스트** | ❌ 불가 확인 | openpyxl `add_image()`는 floating overlay → Buzz "Failed to import". Place in Cell만 인식하는데 Python 미지원 |
-| 0-4 | **Buzz 텍스트 XLSX import 테스트** | ✅ 완료 | 텍스트 XLSX는 정상 import 확인 |
-| 0-5 | **ANTHROPIC_API_KEY 접근 확인** | ✅ 완료 | `.env` 파일에 키 설정, API 호출 성공 확인 |
-
-### 판단 분기점 결과
+### AS-IS (v1 — XLSX + Buzz)
 
 ```
-0-3 실패 → ✅ 확인. 이미지는 수동 유지. 텍스트만 자동화.
-0-4 통과 → ✅ 텍스트 XLSX Buzz import 정상.
-0-5 통과 → ✅ .env + API 호출 정상. 스크립트에 load_dotenv() 추가만 하면 됨.
+Ghost API → Python 서문 추출 → Claude 분할 → XLSX 생성 → Buzz 플러그인 → 수동 이미지 배치 → 수동 export
+                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                                          수동 작업 다수, 이미지 자동화 불가
+```
+
+### TO-BE (v2 — Talk to Figma MCP)
+
+```
+Ghost API → Python 서문 추출 → Claude 분할/제목 2줄 → JSON 생성
+    → Claude Code + Talk to Figma MCP로 Figma 직접 조작:
+        텍스트 삽입 + 이미지 URL fill + 컴포넌트 복제 + PNG export
+                                                          ~~~~~~
+                                                          Figma 열기만 하면 나머지 자동
+```
+
+### 핵심 변경점
+
+| 항목 | v1 (XLSX + Buzz) | v2 (Talk to Figma MCP) |
+|---|---|---|
+| 중간 파일 | XLSX 필수 | 불필요 (JSON만) |
+| 이미지 삽입 | ❌ 수동 | ✅ URL → 자동 fill |
+| Figma 조작 | Buzz 플러그인 수동 실행 | Claude Code가 MCP로 직접 조작 |
+| export | 수동 | ✅ 자동 가능 |
+| 수동 개입 | XLSX 업로드 + Buzz 실행 + 이미지 배치 + export | Figma 열기 + 플러그인 연결 (1회) |
+
+---
+
+## 기존 자산 (v1에서 이어받는 것)
+
+| 항목 | 상태 | 비고 |
+|---|---|---|
+| Ghost API 연동 | ✅ 완료 | `fetch_posts_by_slugs()`, `fetch_recent_posts()` |
+| `extract_intro()` | ✅ 완료 | h2/h3/h4/hr 종료 마커 처리 |
+| Claude API 서문 분할 | ✅ 완료 | `claude-3-haiku-20240307`, 10개 아티클 테스트 통과 |
+| `SPLIT_PROMPT` | ✅ 완료 | 231호 실데이터 기반 규칙 |
+| `.env` / API 키 설정 | ✅ 완료 | |
+| GitHub 레포 | ✅ 완료 | `choiseongh/antiegg-graphics-automation` (로컬: `repo/` 폴더에 클론됨) |
+
+---
+
+## Phase 0. 사전 검증 (MCP 환경)
+
+> 여기서 막히면 v1(XLSX) 방식으로 fallback.
+
+| # | 태스크 | 누가 | 예상 시간 | 상태 |
+|---|---|---|---|---|
+| 0-1 | **Bun 런타임 설치** | Claude | 2분 | ✅ 완료 (v1.3.10 이미 설치됨) |
+| 0-2 | **Talk to Figma MCP 서버 설치** — `bunx cursor-talk-to-figma-mcp@latest` 방식 채택 (npx → bunx 전환) | Claude | 5분 | ✅ 완료 (.mcp.json 설정 완료) |
+| 0-3 | **WebSocket 릴레이 서버 기동 테스트** (`bun socket` → `ws://localhost:3055` 정상 연결 확인) | Claude | 3분 | ✅ 완료 (port 3055 리스닝 + Figma 연결 확인) |
+| 0-4 | **Figma 플러그인 설치** (Figma Community에서 Cursor MCP Plugin 설치 또는 로컬 로드) | 본인 | 5분 | ✅ 완료 (설치 + 실행 중) |
+| 0-5 | **채널 연결 테스트** (Figma 플러그인에서 채널 join → MCP 서버에서 `get_document_info` 호출 → 응답 확인) | 본인+Claude | 5분 | 🔴 실패 — 아래 참고 |
+| 0-6 | **기본 명령어 테스트** — 텍스트 레이어 수정 (`set_text_content`) | Claude | 3분 | ⬜ (0-5 해결 후) |
+| 0-7 | **이미지 fill 테스트** — 이미지 URL로 레이어에 이미지 적용 (`set_image_fill`) | Claude | 5분 | ⬜ (0-5 해결 후) |
+| 0-8 | **export 테스트** — 프레임을 PNG로 내보내기 (`export_node_as_image`) | Claude | 3분 | ⬜ (0-5 해결 후) |
+
+### 0-5 채널 연결 실패 상세 (2026-03-15)
+
+```
+증상: join_channel("m5hvqfox") 호출 시 "Failed to verify connection" 에러
+환경:
+  - WebSocket 릴레이: 정상 (port 3055, bun PID 32672 리스닝)
+  - Figma ↔ 릴레이: 연결됨 (ESTABLISHED)
+  - MCP 서버 ↔ 릴레이: 연결됨 (bun PID 33433 + node PID 33455)
+  - 플러그인 UI: "Connected" 표시
+  - TalkToFigma, ClaudeTalkToFigma 두 MCP 서버 모두 동일 에러
+
+추정 원인:
+  1. 플러그인이 실제로 해당 채널에 join하지 않았을 수 있음
+  2. .mcp.json 변경 후 MCP 서버 재시작 필요 (Claude Code 재시작)
+  3. 채널명 불일치 가능성
+
+다음 시도:
+  - Figma 플러그인에서 채널을 새로 생성하거나 재연결
+  - Claude Code 세션 재시작 후 새 채널명으로 join_channel 재시도
+```
+
+### 판단 분기점
+
+```
+0-5 실패 (WebSocket 연결 안 됨) → Bun/네트워크 문제 디버깅. 해결 안 되면 v1 fallback
+0-6 실패 (텍스트 수정 안 됨) → 플러그인 권한/노드ID 문제. 디버깅
+0-7 실패 (이미지 fill 안 됨) → arinspunk fork 문제. 이미지만 수동, 나머지 MCP 유지
+0-8 실패 (export 안 됨)     → export만 수동 (Figma에서 직접 export). 나머지 MCP 유지
 ```
 
 ---
 
-## 1. 환경 세팅
+## Phase 1. 환경 세팅
 
 | # | 태스크 | 상태 |
 |---|---|---|
-| 1-1 | **Python 버전 확인** | ✅ 확인됨 |
-| 1-2 | **프로젝트 폴더** | ✅ 있음 |
-| 1-3 | **패키지 설치** | ✅ anthropic, requests, openpyxl, beautifulsoup4 설치됨 |
-| 1-4 | **.env 파일 생성** | ✅ 완료 (ANTHROPIC_API_KEY 설정) |
-| 1-5 | **.env.example 생성** | ✅ 완료 |
-| 1-6 | **.gitignore 설정** | ✅ 완료 (이미지/출력물/API키 제외) |
-| 1-7 | **GitHub 레포 생성** | ✅ `choiseongh/antiegg-graphics-automation` (private) |
-| 1-8 | **urls.txt 템플릿 생성** | ⬜ 추가 필요 |
+| 1-1 | **Python 환경** — anthropic, requests, beautifulsoup4, python-dotenv | ✅ 완료 |
+| 1-2 | **.env 파일** — `ANTHROPIC_API_KEY` 설정 | ✅ 완료 |
+| 1-3 | **Bun 런타임 설치** — `curl -fsSL https://bun.sh/install \| bash` | ✅ 완료 (v1.3.10) |
+| 1-4 | **Talk to Figma MCP 설치** — ~~git clone~~ `bunx cursor-talk-to-figma-mcp@latest` 방식 채택 | ✅ 완료 |
+| 1-5 | **MCP 설정 파일** — `.mcp.json`에 TalkToFigma 서버 등록 | ✅ 완료 |
+| 1-6 | **Figma 플러그인** — Cursor MCP Plugin 설치 | ✅ 완료 |
 
-### urls.txt 입력 형식
+### MCP 설정 예시
 
-```
-# 형식: URL,유형
-# 유형: 큐레이션 / 그레이 / 브랜디드
-https://square.antiegg.kr/article-slug-1/,큐레이션
-https://square.antiegg.kr/article-slug-2/,그레이
+```json
+{
+  "mcpServers": {
+    "TalkToFigma": {
+      "command": "bunx",
+      "args": ["cursor-talk-to-figma-mcp@latest"]
+    }
+  }
+}
 ```
 
 ---
 
-## 2. 데이터 수집 모듈 (Ghost API)
+## Phase 2. 데이터 수집 + 텍스트 처리 (Python)
 
-> `fetch_posts_by_slugs()`, `fetch_recent_posts()` 구현 완료.
-
-| # | 태스크 | 의존성 | 상태 |
-|---|---|---|---|
-| 2-1 | **URL → slug 추출 함수** | 없음 | ⬜ 추가 필요 |
-| 2-2 | **Ghost API 호출 함수** | ✅ 0-1 통과 | ✅ 구현됨 |
-| 2-3 | **콘텐츠 유형 판별 로직** | — | ⚠️ urls.txt에서 유형 읽기로 변경 필요 |
-| 2-4 | **호수 입력 처리** | 없음 | ✅ 구현됨 (`--issue`) |
-| 2-5 | **urls.txt 파서 추가** | 2-1, 2-3 | ⬜ 추가 필요 |
-
----
-
-## 3. 발췌문 추출 모듈
-
-> `extract_intro()` 구현 + 수정 완료. h2/h3/h4/hr 종료 마커 처리.
+> Ghost API + Claude API 부분. 기존 코드 대부분 재사용.
 
 | # | 태스크 | 의존성 | 상태 |
 |---|---|---|---|
-| 3-1 | **HTML → 발췌문 추출 함수** | ✅ 0-2에서 확정 | ✅ 구현됨 + h3/h4/hr 추가 수정 완료 |
-| 3-2 | **불필요 요소 제거** | 3-1 | ✅ figure 건너뛰기 동작 확인 |
-| 3-3 | **발췌문 범위 결정** | 3-1 | ✅ h2/h3/h4/hr 없으면 상위 3개 p 태그 fallback |
-| 3-4 | **발췌문 길이 적정성 체크** | 3-3 | ⚠️ 과도하게 긴 아티클 존재 (두산아트랩 1640자, 도마뱀 1950자 — h2/h3/hr 없는 산문형). 별도 처리 필요 |
+| 2-1 | **Ghost API 호출** | — | ✅ 구현됨 |
+| 2-2 | **`extract_intro()` 서문 추출** | — | ✅ 구현됨 |
+| 2-3 | **Claude 서문 분할** | — | ✅ 구현됨 |
+| 2-4 | **Claude 제목/부제목 2줄 생성 추가** — `SPLIT_PROMPT`에 제목 2줄 + 부제목 2줄 생성 통합 | 2-3 | ⬜ |
+| 2-5 | **응답 파서 확장** — 서문 분할 + 제목_2줄 + 부제목_2줄 JSON 파싱 | 2-4 | ⬜ |
+| 2-6 | **JSON 출력** — 아티클별 데이터를 MCP에서 사용할 JSON 형식으로 출력 | 2-5 | ⬜ |
+| 2-7 | **`load_dotenv()` 추가** | — | ⬜ |
+| 2-8 | **과도하게 긴 서문 처리** — 1500자+ 산문형 아티클 글자수 제한 또는 fallback | — | ⬜ (중기) |
 
-### 발견된 이슈: 과도하게 긴 서문
+### JSON 출력 형식 (예시)
 
-일부 아티클은 h2/h3/h4/hr 없이 산문형으로 작성되어 서문이 1500자 이상 추출됨.  
-→ 글자수 제한 또는 fallback 로직 추가 필요 (중기 과제)
-
----
-
-## 4. 서문 분할 + 제목/부제목 생성 모듈 (Claude Haiku)
-
-> `split_intro_with_claude()` 구현 완료. 10개 아티클 일괄 테스트 성공.
-> 제목/부제목 2줄 버전 생성 기능 추가 예정.
-
-| # | 태스크 | 의존성 | 상태 |
-|---|---|---|---|
-| 4-1 | **Claude API 호출 래퍼** | ✅ 0-5 통과 | ✅ 구현됨 (모델: `claude-3-haiku-20240307`) |
-| 4-2 | **서문 분할 프롬프트** | — | ✅ 실데이터 기반 SPLIT_PROMPT 업데이트 완료 |
-| 4-3 | **프롬프트 응답 파서** | 4-2 | ✅ 구현됨 (`===PAGE===` 구분) |
-| 4-4 | **10개 아티클 일괄 테스트** | 4-1~4-3 | ✅ 완료 (비용 $0.011 ≈ 15원) |
-| 4-5 | **서문 분할 품질 고도화** | 4-4 | 🔒 보류 (사용자가 나중에 하겠다고 함) |
-| 4-6 | **제목/부제목 2줄 버전 생성** | 4-2 | ⬜ 프롬프트 통합 방식 확정, 구현 필요 |
-| 4-7 | **응답 파서 확장** | 4-6 | ⬜ 제목_2줄, 부제목_2줄 필드 파싱 추가 |
-| 4-8 | **`.env` 자동 로딩** | — | ⬜ `load_dotenv()` 스크립트에 추가 필요 |
-
-### 확정된 분할 기준 (231호 7페이지 실데이터 분석)
-
-```
-• 300자 이하 → 2장, 350자 이상 → 3장
-• 페이지당 130~170자 (평균 150자 목표)
-• 페이지당 2개 단락 (71%), 때에 따라 3개 (29%)
-• 1개 단락 = 1~3문장
-• 문장 중간 끊김 금지, 문장 순서 유지
-• 핵심만 선별하는 편집 판단 포함
-• 마지막 페이지는 "~봅니다", "~합니다" 류 마무리
+```json
+[
+  {
+    "no": 1,
+    "content_type": "큐레이션",
+    "title": "멈춘 자리에서 피어난 통찰",
+    "title_2line": "멈춘 자리에서\n피어난 통찰",
+    "subtitle": "안규철, 에마 미첼, 존 버거처럼 관찰하기",
+    "subtitle_2line": "안규철, 에마 미첼,\n존 버거처럼 관찰하기",
+    "editor": "김보경",
+    "intro_pages": [
+      "첫 번째 페이지 텍스트...",
+      "두 번째 페이지 텍스트...",
+      "세 번째 페이지 텍스트..."
+    ],
+    "feature_image": "https://square.antiegg.kr/content/images/..."
+  }
+]
 ```
 
-### 제목/부제목 2줄 버전 생성 규칙 (확정)
+### 제목/부제목 2줄 규칙 (확정)
 
 ```
 • 서문 분할과 동일 API 호출에서 함께 생성
 • 줄바꿈 기준: 의미 단위 경계 (조사 뒤, 절 경계, 수식어/명사구 경계)
-• 규칙 기반이 아닌 Claude에게 맡기는 방식
-• 출력: 제목_1줄(원본), 제목_2줄, 부제목_1줄(원본), 부제목_2줄
-```
-
-### Claude API 비용
-
-```
-모델: claude-3-haiku-20240307
-10개 아티클 일괄 처리: $0.011 (약 15원)
-월 예상 비용: ~$0.20 (매주 5~18개 아티클 기준)
-※ Claude Max 구독과 별개, API 콘솔에서 별도 과금
+• Claude에게 맡기는 방식 (규칙 기반 X)
 ```
 
 ---
 
-## 5. 이미지 처리 모듈
+## Phase 3. Figma 템플릿 준비
 
-> **❌ 불가 확정**: openpyxl `add_image()`는 floating overlay 방식.  
-> Buzz는 "Place in Cell" 파일 삽입만 인식하는데 Python 라이브러리가 미지원.  
-> → 이미지 URL만 XLSX에 저장하고, 이미지는 수동으로 처리.
+> MCP가 조작할 Figma 템플릿의 레이어 구조를 파악하고 정리.  
+> **이 단계는 본인이 Figma에서 직접 해야 할 부분이 많음.**
 
-| # | 태스크 | 상태 |
-|---|---|---|
-| 5-1 | ~~이미지 다운로드 함수~~ | ❌ 불필요 (Buzz 셀 삽입 불가) |
-| 5-2 | ~~이미지 리사이즈~~ | ❌ 불필요 |
-| 5-3 | ~~다운로드 실패 처리~~ | ❌ 불필요 |
+| # | 태스크 | 누가 | 상태 |
+|---|---|---|---|
+| 3-1 | **카드뉴스 템플릿 구조 파악** — 현재 Figma 파일에서 큐레이션/그레이/브랜디드 각 유형의 컴포넌트 구조 확인 | 본인+Claude | ⬜ |
+| 3-2 | **레이어 네이밍 규칙 확정** — MCP가 찾을 수 있도록 레이어 이름 통일 (예: `title`, `subtitle`, `body_1`, `hero_image` 등) | 본인 | ⬜ |
+| 3-3 | **마스터 컴포넌트 정리** — MCP로 복제할 기준 컴포넌트 확정. 각 페이지 유형(표지, 서문1, 서문2, 서문3 등)별 컴포넌트 | 본인 | ⬜ |
+| 3-4 | **노드 ID 수집** — `scan_text_nodes`와 `get_node_info`로 텍스트/이미지 레이어의 노드 ID 매핑 | Claude (MCP) | ⬜ |
+
+### 레이어 네이밍 예시
+
+```
+카드뉴스 — 큐레이션
+├── cover (표지 프레임)
+│   ├── title          ← 제목 (2줄 버전)
+│   ├── subtitle       ← 부제목 (2줄 버전)
+│   ├── editor_name    ← 에디터명
+│   └── hero_image     ← 대표 이미지 (Rectangle, image fill 대상)
+├── page_1 (서문 1페이지)
+│   └── body           ← 서문 텍스트
+├── page_2 (서문 2페이지)
+│   └── body
+└── page_3 (서문 3페이지, 있으면)
+    └── body
+```
 
 ---
 
-## 6. XLSX 생성 모듈
+## Phase 4. MCP 파이프라인 구축
 
-> `create_xlsx()` 구현 완료. 제목/부제목 2줄 컬럼 추가 필요.
+> Python JSON 출력 → Claude Code가 MCP로 Figma 조작.
 
 | # | 태스크 | 의존성 | 상태 |
 |---|---|---|---|
-| 6-1 | **XLSX 기본 구조 생성** | — | ✅ 구현됨 |
-| 6-2 | **데이터 행 채우기** | — | ✅ 구현됨 |
-| 6-3 | ~~이미지 셀 삽입~~ | — | ❌ 불가 확정 |
-| 6-4 | **파일명 규칙** | — | ✅ 구현됨 (`정기그래픽_{issue}호.xlsx`) |
-| 6-5 | **제목/부제목 2줄 컬럼 추가** | 4-6 | ⬜ 추가 필요 |
+| 4-1 | **워크플로우 스크립트 작성** — Python JSON을 읽고 MCP 명령 순서를 정의하는 실행 흐름 | Phase 2, 3 | ⬜ |
+| 4-2 | **컴포넌트 복제 자동화** — 아티클 수만큼 마스터 컴포넌트를 `clone_node` / `create_component_instance`로 복제 | 3-3 | ⬜ |
+| 4-3 | **텍스트 일괄 삽입** — `set_multiple_text_contents`로 제목/부제목/서문 텍스트 주입 | 3-2, 3-4 | ⬜ |
+| 4-4 | **이미지 fill 자동화** — `set_image_fill`로 대표이미지 URL → hero_image 레이어에 적용 | 3-2 | ⬜ |
+| 4-5 | **PNG export 자동화** — `export_node_as_image`로 각 카드 프레임을 PNG로 추출 → 파일 저장 | 4-3, 4-4 | ⬜ |
+| 4-6 | **에러 핸들링** — 이미지 fetch 실패, 텍스트 overflow, 노드 못 찾음 등 예외 처리 | 4-1~4-5 | ⬜ |
 
-### XLSX 컬럼 구조
+### MCP 명령 실행 순서
 
 ```
-현재:
-  호수 | No | 콘텐츠종류 | 제목 | 부제목 | 에디터명 | 서문_1 | 서문_2 | 서문_3 | 대표이미지URL
-
-변경 예정:
-  호수 | No | 콘텐츠종류 | 제목 | 제목_2줄 | 부제목 | 부제목_2줄 | 에디터명 | 서문_1 | 서문_2 | 서문_3 | 대표이미지URL
+1. get_document_info()           — Figma 파일 연결 확인
+2. get_local_components()        — 마스터 컴포넌트 ID 확보
+3. FOR each article:
+   a. clone_node(masterComponentId)  — 카드 세트 복제
+   b. set_text_content(titleNodeId, title_2line)
+   c. set_text_content(subtitleNodeId, subtitle_2line)
+   d. set_text_content(editorNodeId, editor)
+   e. set_text_content(body1NodeId, intro_pages[0])
+   f. set_text_content(body2NodeId, intro_pages[1])
+   g. set_text_content(body3NodeId, intro_pages[2])  — 3장일 때만
+   h. set_image_fill(heroImageNodeId, feature_image, "url")
+4. FOR each completed frame:
+   a. export_node_as_image(frameId, "PNG", 2)  — scale 2x
+   b. base64 → 파일 저장
 ```
 
 ---
 
-## 7. 통합 + CLI
-
-> `main()` + argparse 구현 완료.
+## Phase 5. 통합 테스트
 
 | # | 태스크 | 의존성 | 상태 |
 |---|---|---|---|
-| 7-1 | **메인 스크립트 통합** | — | ✅ 구현됨 |
-| 7-2 | **CLI에 `--input` 옵션 추가** | 2-5 | ⬜ 추가 필요 |
-| 7-3 | **진행률 표시** | — | ✅ 구현됨 |
-| 7-4 | **에러 핸들링 보완** | — | ⚠️ 기본 try/except 있음, 실패 목록 요약 추가하면 좋음 |
-| 7-5 | **`.env` 자동 로딩 추가** | — | ⬜ 추가 필요 |
-| 7-6 | **비용 표시** | — | ⬜ 추가 필요 |
-
----
-
-## 8. End-to-End 테스트
-
-| # | 태스크 | 의존성 | 상태 |
-|---|---|---|---|
-| 8-1 | **231호 재현 테스트** | 4-6, 6-5, 7-5 완료 | ⬜ |
-| 8-2 | **Buzz 업로드 테스트** | 8-1 | ⬜ |
-| 8-3 | **서문 품질 검수** | 8-1 | ⬜ |
-| 8-4 | **에지케이스 확인** | 8-1 | ⬜ |
-| 8-5 | **실전 투입** | 8-1~8-4 | ⬜ |
+| 5-1 | **단일 아티클 테스트** — 1개 아티클로 전체 파이프라인 실행 (Ghost → Claude → JSON → MCP → Figma → PNG) | Phase 4 | ⬜ |
+| 5-2 | **231호 전체 테스트** — 10~11개 아티클 일괄 처리. 기존 231호 이미지와 결과 비교 | 5-1 | ⬜ |
+| 5-3 | **품질 검수** — 텍스트 위치/크기, 이미지 크롭, 줄바꿈 등 시각적 확인 | 5-2 | ⬜ |
+| 5-4 | **에지케이스 확인** — 서문 2장 vs 3장, 긴 제목, 브랜디드 유형, 이미지 없는 아티클 | 5-2 | ⬜ |
+| 5-5 | **실전 투입** — 다음 호에 실제 적용. 기존 방식과 병행 비교 | 5-1~5-4 | ⬜ |
 
 ---
 
 ## 남은 태스크 우선순위
 
-### 즉시 (다음 작업)
+### 즉시 (Phase 0~1)
 
-| # | 태스크 | 설명 |
+| # | 태스크 | 상태 |
 |---|---|---|
-| A-1 | **제목/부제목 2줄 프롬프트 통합** | SPLIT_PROMPT에 서문 분할 + 제목 2줄 + 부제목 2줄 생성을 한 번에 요청 |
-| A-2 | **응답 파서 확장** | 제목_2줄, 부제목_2줄 필드 파싱 |
-| A-3 | **XLSX 컬럼 추가** | 제목_2줄, 부제목_2줄 컬럼 |
-| A-4 | **`load_dotenv()` 추가** | python-dotenv 로딩 |
-| A-5 | **git commit + push** | 수정사항 반영 |
+| A-1 | Bun 설치 + Talk to Figma MCP 설치 | ✅ 완료 |
+| A-2 | Figma 플러그인 설치 + 채널 연결 테스트 | 🔴 채널 연결 실패 — 재시도 필요 |
+| A-3 | 기본 명령어 테스트 (텍스트, 이미지, export) | ⬜ A-2 해결 후 |
+
+### 단기 (Phase 2~4)
+
+| # | 태스크 |
+|---|---|
+| B-1 | Claude 프롬프트에 제목/부제목 2줄 생성 통합 |
+| B-2 | Python 스크립트 → JSON 출력 형식으로 리팩토링 |
+| B-3 | Figma 템플릿 레이어 네이밍 정리 |
+| B-4 | MCP 파이프라인 구축 (복제 → 텍스트 → 이미지 → export) |
 
 ### 중기
 
-| # | 태스크 | 설명 |
-|---|---|---|
-| B-1 | **`--input urls.txt` CLI** | URL + 콘텐츠 유형 입력 |
-| B-2 | **과도하게 긴 서문 처리** | 1500자+ 산문형 아티클 fallback |
-| B-3 | **서문 분할 품질 고도화** | 프롬프트 튜닝 (보류 중) |
-| B-4 | **Notion API 연동** | 콘텐츠 유형 + URL 자동 수집 |
-| B-5 | **231호 E2E 테스트 + Buzz 업로드** | 실전 검증 |
-
-### 장기
-
-| # | 태스크 | 설명 |
-|---|---|---|
-| C-1 | **뉴스레터 미리보기 자동화** | — |
-| C-2 | **이미지 Place in Cell 대안** | 라이브러리/도구 탐색 |
+| # | 태스크 |
+|---|---|
+| C-1 | 과도하게 긴 서문 처리 (1500자+ fallback) |
+| C-2 | 서문 분할 품질 고도화 (프롬프트 튜닝) |
+| C-3 | Notion API 연동 (URL + 콘텐츠 유형 자동 수집) |
+| C-4 | 뉴스레터 미리보기 자동화 |
 
 ---
 
 ## 의존성 맵
 
 ```
-[0. 사전 검증] — 전체 완료
-  0-1 Ghost API        ✅
-  0-2 excerpt 확인     ✅
-  0-3 Buzz 이미지      ❌ 불가 → 이미지 수동 확정
-  0-4 Buzz 텍스트 XLSX ✅
-  0-5 API KEY          ✅
+[Phase 0: MCP 환경 검증]
+  0-1~0-3 서버 설치/기동    ← Claude가 처리
+  0-4~0-5 플러그인 설치/연결 ← 본인이 Figma에서
+  0-6~0-8 명령어 테스트      ← 함께
 
-[1. 환경 세팅]          ✅ 완료 (urls.txt 템플릿만 미생성)
-[2. Ghost API]          ✅ 핵심 구현됨 → urls.txt 파서 추가 필요
-[3. 발췌문 추출]        ✅ 완료 → 긴 서문 처리 중기 과제
-[4. 서문 분할]          ✅ 핵심 완료 → 제목/부제목 2줄 추가 필요
-[5. 이미지]             ❌ 불가 확정
-[6. XLSX 생성]          ✅ 핵심 구현됨 → 제목/부제목 2줄 컬럼 추가
-[7. 통합 CLI]           ✅ 핵심 구현됨 → --input + load_dotenv 추가
-[8. E2E 테스트]         ⬜ 제목/부제목 2줄 구현 후 진행
+[Phase 1: 환경 세팅]  ✅ 전부 완료 (Python + Bun + MCP + 플러그인)
+
+[Phase 2: 데이터 수집 + 텍스트]
+  2-1~2-3 ✅ 완료
+  2-4~2-6 제목 2줄 + JSON 출력 추가 필요  ← Phase 0 통과 후
+
+[Phase 3: Figma 템플릿]  ← Phase 0 통과 후
+  3-1~3-2 본인이 Figma에서 레이어 정리
+  3-3~3-4 Claude가 MCP로 노드 ID 수집
+
+[Phase 4: MCP 파이프라인]  ← Phase 2 + 3 완료 후
+  4-1~4-6 Claude가 구축
+
+[Phase 5: 통합 테스트]  ← Phase 4 완료 후
 ```
 
 ---
 
-## 본인이 직접 해야 할 일 (Claude에게 못 맡기는 것)
+## 본인이 직접 해야 할 일
 
-| # | 할 일 | 상태 |
+| # | 할 일 | 이유 |
 |---|---|---|
-| 1 | ~~0-1 Ghost API 브라우저 테스트~~ | ✅ 완료 |
-| 2 | ~~0-3 Buzz 이미지 테스트~~ | ❌ 불가 확인 완료 |
-| 3 | ~~0-5 ANTHROPIC_API_KEY 설정~~ | ✅ 완료 |
-| 4 | 매주 urls.txt에 URL+유형 붙여넣기 | ⬜ |
-| 5 | 8-2 Buzz 업로드 + 결과 확인 (Figma 앱 내 작업) | ⬜ |
-| 6 | 8-3 서문 품질 주관적 판단 | ⬜ |
-| 7 | 8-5 실전 투입 결정 | ⬜ |
+| 1 | ~~Figma에서 MCP 플러그인 설치~~ + **채널 재연결** | 플러그인 설치 완료, 채널 연결만 남음 |
+| 2 | 카드뉴스 템플릿 레이어 이름 정리 | 디자인 구조 판단 필요 |
+| 3 | 마스터 컴포넌트 확정 | 어떤 컴포넌트를 복제할지 본인 결정 |
+| 4 | 품질 검수 (텍스트 위치, 이미지 크롭, 줄바꿈) | 시각적 판단 |
+| 5 | 실전 투입 결정 | 본인 판단 |
 
-**나머지 (스크립트 수정/추가 구현)** → Claude에게 요청 가능
+**나머지** (Bun 설치, MCP 설정, 스크립트 수정, 파이프라인 구축, export) → Claude가 처리
 
 ---
 
-## 기술 스택 요약
+## 기술 스택 (v2)
 
 | 구성 요소 | 기술 | 비용 |
 |---|---|---|
-| 데이터 수집 | Ghost Content API (공개 키) | 무료 |
-| 발췌문 추출 | BeautifulSoup4 (html 본문 파싱) | 무료 |
-| 서문 분할 + 제목/부제목 | Claude 3 Haiku API (`claude-3-haiku-20240307`) | 월 ~$0.20 |
-| XLSX 생성 | openpyxl | 무료 |
-| 환경변수 관리 | python-dotenv | 무료 |
-| 버전 관리 | GitHub (`choiseongh/antiegg-graphics-automation`) | 무료 |
+| 데이터 수집 | Ghost Content API | 무료 |
+| 서문 추출 | BeautifulSoup4 | 무료 |
+| 텍스트 처리 | Claude 3 Haiku API | 월 ~$0.20 |
+| Figma 조작 | Talk to Figma MCP (`bunx cursor-talk-to-figma-mcp`) | 무료 |
+| 런타임 | Bun (WebSocket relay) | 무료 |
+| 버전 관리 | GitHub | 무료 |
 | **월 총비용** | | **~$0.20** |
 
 ---
 
-## 프로젝트 파일 구조
+## 프로젝트 경로
 
 ```
-~/Desktop/Database/1. 진행/정기그래픽 자동화/
-├── generate_graphics.py          ← 메인 스크립트 (338줄)
-├── .env                          ← ANTHROPIC_API_KEY (설정 완료)
-├── .env.example                  ← API 키 템플릿
-├── .gitignore                    ← 이미지/출력물/API키 제외
-├── buzz_텍스트_테스트.xlsx       ← Buzz import 성공 확인용
-├── buzz_이미지_테스트.xlsx       ← Buzz import 실패 확인용
-├── test_231호.xlsx               ← --no-split 테스트 출력
-├── test_231호_v2.xlsx            ← --no-split 테스트 출력 (수정 후)
-├── test_output.xlsx              ← 이전 세션 테스트 출력
-├── 정기그래픽.xlsx               ← 230호 기존 Buzz용 XLSX (참조)
-├── docs/
-│   ├── Phase1_액션플랜.md        ← 이 문서
-│   └── 워크플로우_AsIs_ToBe.md   ← 상급자 보고용
-├── 228호_2026년 2월 23일/        ← 참조 이미지
-├── 229호_2026년 3월 2일/         ← 참조 이미지
-├── 231호_2026년 3월 16일/        ← 최신 참조 이미지 (테스트 1순위)
-├── 큐레이션 *.png / 그레이 *.png / 브랜디드 *.png  ← 230호 참조 이미지
-└── 뉴스레터 *.png                ← 뉴스레터 미리보기/이미지
+로컬: ~/Desktop/Database/1. 진행/정기그래픽-자동화/
+MCP 레포: ~/Desktop/Database/1. 진행/claude-talk-to-figma-mcp/  (참고용, 직접 사용 X — bunx로 실행)
+GitHub: https://github.com/choiseongh/antiegg-graphics-automation
+```
+
+---
+
+## Fallback 계획
+
+```
+MCP 전체 실패 → v1 (XLSX + Buzz) 방식으로 복귀. 기존 코드 유지됨.
+이미지만 실패 → MCP로 텍스트 자동화, 이미지만 수동 (v1보다는 개선)
+export만 실패 → MCP로 텍스트+이미지 자동화, Figma에서 수동 export (충분히 개선)
 ```
