@@ -1,0 +1,46 @@
+# 환경변수 (API 키 포함)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 출력물 (XLSX는 매번 생성되므로 추적 불필요)
+output_*.xlsx
+정기그래픽_*.xlsx
+
+# 테스트 출력물
+test_output.xlsx
+
+# 참조 이미지 (용량 큼, 코드 추적 불필요)
+*.png
+*.jpg
+*.jpeg
+
+# 참조 데이터 폴더 (호수별 이미지)
+228호_*/
+229호_*/
+230호_*/
+231호_*/
+
+# 참조 XLSX (기존 Buzz용)
+정기그래픽.xlsx
+
+# 스크린샷
+스크린샷 *.png
+
+# Claude 설정
+.claude/
