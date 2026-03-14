@@ -27,21 +27,31 @@ from openpyxl import Workbook
 GHOST_URL = "https://square.antiegg.kr/ghost/api/content"
 GHOST_KEY = "508bef5f0005054b991088cd38"
 
-CLAUDE_MODEL = "claude-haiku-4-20250414"
+CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 SPLIT_PROMPT = """당신은 카드뉴스 텍스트 편집자입니다.
-주어진 서문(발췌문)을 인스타그램 카드뉴스 페이지용으로 분할해주세요.
+주어진 서문을 인스타그램 카드뉴스 페이지용으로 분할해주세요.
 
-## 규칙
-1. 서문에서 핵심 문장들을 선별하여 2장 또는 3장으로 나눠주세요
-2. 각 페이지에는 2개 단락을 배치해주세요 (1개 단락 = 1~3문장)
-3. 단락 사이는 빈 줄 하나로 구분해주세요
-4. 한 페이지의 총 글자 수는 120~170자 범위로 맞춰주세요
-5. 서문이 짧으면(~5문장) 2장, 길면(6문장+) 3장으로 나눠주세요
-6. 문장을 절대 중간에 끊지 마세요 (마침표/물음표/느낌표 단위)
-7. 문장 순서를 바꾸지 마세요
-8. 마지막 페이지의 마지막 단락은 "이번 글/아티클에서는 ~합니다" 류의 마무리 문장이면 좋습니다
-9. 원문의 모든 문장을 반드시 사용할 필요는 없습니다 — 핵심만 선별해주세요
+## 장수 결정
+- 서문이 300자 이하면 2장으로 나누세요
+- 서문이 350자 이상이면 3장으로 나누세요
+- 300~350자 사이면 문장 끊김이 자연스러운 쪽으로 선택하세요
+
+## 각 페이지 구성
+- 페이지당 130~170자 (평균 150자 목표)
+- 페이지당 2개 단락 배치 (때에 따라 3개도 가능)
+- 1개 단락 = 1~3문장
+- 단락 사이는 빈 줄 하나로 구분
+
+## 금지 사항
+- 문장을 중간에 끊지 마세요 (마침표/물음표/느낌표 단위로만 끊기)
+- 문장 순서를 바꾸지 마세요
+- 원문에 없는 문장을 추가하지 마세요
+
+## 편집 지침
+- 원문의 모든 문장을 사용할 필요 없습니다. 핵심만 선별하세요
+- 마지막 페이지의 마지막 단락은 "~봅니다", "~합니다" 류의 마무리 문장으로 끝내세요
+- 각 페이지가 독립적으로 읽혀도 의미가 통해야 합니다
 
 ## 출력 형식
 각 페이지를 ===PAGE=== 로 구분해서 출력하세요. 다른 설명 없이 분할된 텍스트만 출력하세요.
@@ -102,24 +112,23 @@ def fetch_recent_posts(limit: int = 20) -> list[dict]:
 # ─────────────────────────────────────────────
 
 def extract_intro(html: str) -> str:
-    """HTML에서 서문(첫 h2 이전의 p 태그 텍스트) 추출"""
+    """첫 소제목(h2/h3/h4) 또는 구분선(hr) 이전의 p 태그 텍스트 추출"""
     soup = BeautifulSoup(html, "html.parser")
     paragraphs = []
+    stop_tags = {"h2", "h3", "h4", "hr"}
 
     for elem in soup.children:
-        # h2를 만나면 서문 끝
-        if getattr(elem, "name", None) == "h2":
+        tag_name = getattr(elem, "name", None)
+        if tag_name in stop_tags and paragraphs:
             break
-        # p 태그의 텍스트만 수집
-        if getattr(elem, "name", None) == "p":
+        if tag_name == "p":
             text = elem.get_text(strip=True)
             if text:
                 paragraphs.append(text)
 
-    # h2가 없는 경우 (전체가 서문인 아티클) → 최대 5개 p 태그
     if not paragraphs:
         all_p = soup.find_all("p")
-        for p in all_p[:5]:
+        for p in all_p[:3]:
             text = p.get_text(strip=True)
             if text:
                 paragraphs.append(text)
