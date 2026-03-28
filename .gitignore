@@ -58,6 +58,11 @@ admin/.omc/
 !admin/public/assets/*.png
 !admin/public/assets/*.svg
 
+# 액션플랜 (API 키 포함)
+docs/액션플랜_v3.md
+docs/액션플랜_v4.md
+docs/액션플랜_v5_전체기획.md
+
 # Figma dev css (참고용, 추적 불필요)
 figma dev css/
 
