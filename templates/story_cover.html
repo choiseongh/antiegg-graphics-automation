@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/sun-typeface/SUIT/fonts/variable/woff2/SUIT-Variable.css');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1080px;
+    height: 1920px;
+    font-family: 'SUIT Variable', 'SUIT', sans-serif;
+    background: #000;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .hero-image {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1080px;
+    height: 1172px;
+    object-fit: cover;
+    object-position: center;
+  }
+  .hero-image.grayscale { filter: grayscale(100%); }
+
+  /* dim: 이미지(1172px) 하단에서 검정 전환
+     이미지 끝(61%) 근처에서 전환, 상단은 투명 유지 */
+  .dim {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1080px;
+    height: 1920px;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0) 38%,
+      rgba(0, 0, 0, 0.5) 52%,
+      rgba(0, 0, 0, 1) 61%,
+      rgba(0, 0, 0, 1) 100%
+    );
+  }
+
+  .grain {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1080px;
+    height: 1920px;
+    opacity: 0.1;
+    background: url('file://{{ assets_dir }}/grain-dark.png') repeat;
+    background-size: 220px 220px;
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+  }
+
+  /* Contents: padding 112px 0, gap:42px */
+  .contents {
+    position: absolute;
+    top: 937px;
+    left: 0;
+    width: 1080px;
+    height: 983px;
+    display: flex;
+    padding: 112px 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 42px;
+  }
+
+  /* Title group: 라벨 + 제목 + 부제목 묶음 (내부 gap:40px) */
+  .title-group {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+  }
+
+  .label {
+    color: #F7343C;
+    text-align: center;
+    font-size: 40px;
+    font-weight: 600;
+    line-height: normal;
+    letter-spacing: -0.4px;
+    text-transform: capitalize;
+  }
+
+  .title {
+    align-self: stretch;
+    color: #FFF;
+    text-align: center;
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 140%;
+    letter-spacing: -0.72px;
+  }
+
+  .subtitle {
+    align-self: stretch;
+    color: #C2C4CC;
+    text-align: center;
+    font-size: 40px;
+    font-weight: 300;
+    line-height: 56px;
+  }
+
+  /* Bottom Contents: 스티커 + CTA, padding-top:42px로 이중 gap 확보 */
+  .bottom-contents {
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 42px;
+    gap: 50px;
+  }
+
+  /* story_링크스티커: 250×92, 상하 1px 라인만 (빈 박스) */
+  .link-sticker {
+    width: 250px;
+    height: 92px;
+    border-top: 1px solid #45474D;
+    border-bottom: 1px solid #45474D;
+  }
+
+  .cta {
+    color: #C2C4CC;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 400;
+    line-height: normal;
+  }
+</style>
+</head>
+<body>
+  <img class="hero-image {{ 'grayscale' if type == 'gray' }}" src="{{ hero_image }}" alt="">
+  <div class="dim"></div>
+  <div class="grain"></div>
+  <div class="contents">
+    <div class="title-group">
+      <div class="label">{{ type_label }}</div>
+      <div class="title">{{ title_2line }}</div>
+      <div class="subtitle">{{ subtitle_2line }}</div>
+    </div>
+    <div class="bottom-contents">
+      <div class="link-sticker"></div>
+      <div class="cta">콘텐츠 보러가기</div>
+    </div>
+  </div>
+</body>
+</html>
