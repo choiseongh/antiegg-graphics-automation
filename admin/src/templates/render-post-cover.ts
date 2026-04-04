@@ -8,6 +8,7 @@ interface PostCoverData {
   heroImage: string
   titlePosition: "top" | "bottom"
   imagePosition?: "top" | "center" | "bottom"
+  imagePositionX?: "left" | "center" | "right"
   mode?: "preview" | "export"
   exportAssetsPath?: string
 }
@@ -16,7 +17,7 @@ export function renderPostCover(data: PostCoverData): string {
   const assets = assetsPath(data.mode ?? "preview", data.exportAssetsPath)
   const isGray = data.type === "gray"
   const isTop = data.titlePosition === "top"
-  const objPos = data.imagePosition ?? "center"
+  const objPos = `${data.imagePositionX ?? "center"} ${data.imagePosition ?? "center"}`
 
   return `<!DOCTYPE html>
 <html lang="ko">

@@ -16,11 +16,9 @@ const TYPE_LABELS: Record<ArticleType, string> = {
 interface SortableGroupProps {
   type: ArticleType
   articles: EditArticle[]
-  onToggleTitlePosition: (globalIndex: number) => void
-  globalIndexMap: Map<string, number>
 }
 
-export function SortableGroup({ type, articles, onToggleTitlePosition, globalIndexMap }: SortableGroupProps) {
+export function SortableGroup({ type, articles }: SortableGroupProps) {
   const ids = articles.map((a) => `${a.type}-${a.no}`)
 
   return (
@@ -37,17 +35,12 @@ export function SortableGroup({ type, articles, onToggleTitlePosition, globalInd
       ) : (
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-2">
-            {articles.map((article) => {
-              const key = `${article.type}-${article.no}`
-              const globalIdx = globalIndexMap.get(key) ?? 0
-              return (
-                <SortableCard
-                  key={key}
-                  article={article}
-                  onToggleTitlePosition={() => onToggleTitlePosition(globalIdx)}
-                />
-              )
-            })}
+            {articles.map((article) => (
+              <SortableCard
+                key={`${article.type}-${article.no}`}
+                article={article}
+              />
+            ))}
           </div>
         </SortableContext>
       )}

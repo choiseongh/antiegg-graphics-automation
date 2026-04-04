@@ -36,27 +36,30 @@ export function PreviewIframe({ article, activeTab }: PreviewIframeProps) {
           title2line: a.title2line || a.title,
           subtitle2line: a.subtitle2line || a.subtitle,
           heroImage: a.heroImage,
-          imagePosition: a.imagePosition,
+          imagePosition: a.imagePositions.story.y,
+          imagePositionX: a.imagePositions.story.x,
         })
       case "post":
         return renderPostCover({
           typeLabel,
           type: a.type,
-          title2line: a.title2line || a.title,
+          title2line: a.postTitle2line || a.title2line || a.title,
           editor: a.editor,
           heroImage: a.heroImage,
           titlePosition: a.titlePosition,
-          imagePosition: a.imagePosition,
+          imagePosition: a.imagePositions.post.y,
+          imagePositionX: a.imagePositions.post.x,
         })
       case "nl-preview":
         return renderNlPreviewArticle({
           issue: state.issue,
           typeLabel,
           type: a.type,
-          title: a.title2line || a.title,
+          title: a.nlTitle2line || a.title2line || a.title,
           subtitle: a.subtitle,
           heroImage: a.heroImage,
-          imagePosition: a.imagePosition,
+          imagePosition: a.imagePositions["nl-preview"].y,
+          imagePositionX: a.imagePositions["nl-preview"].x,
         })
       case "intro1":
       case "intro2":
@@ -68,7 +71,7 @@ export function PreviewIframe({ article, activeTab }: PreviewIframeProps) {
           .filter(Boolean)
           .map((p) => p.replace(/\n/g, "<br>"))
         return renderIntroPage({
-          articleTitle: a.title,
+          articleTitle: a.introTitle || a.title,
           introParagraphs: paragraphs.length > 0 ? paragraphs : [""],
         })
       }

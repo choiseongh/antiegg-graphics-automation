@@ -104,10 +104,10 @@ export function NewsletterPanel() {
           {activeNlTab === "story-list" && (() => {
             const totalPages = splitArticlesIntoPages(articles.map((a) => ({ typeLabel: TYPE_LABELS[a.type] ?? a.type, type: a.type, title: a.title }))).length
             return totalPages > 1 ? (
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 rounded-full bg-white/80 px-4 py-1 shadow-sm backdrop-blur dark:bg-zinc-800/80">
-                <button onClick={() => setListPageIdx(Math.max(0, listPageIdx - 1))} disabled={listPageIdx === 0} className="text-xs text-zinc-400 disabled:opacity-30">&larr;</button>
-                <span className="text-xs text-zinc-500">{listPageIdx + 1}/{totalPages}</span>
-                <button onClick={() => setListPageIdx(Math.min(totalPages - 1, listPageIdx + 1))} disabled={listPageIdx >= totalPages - 1} className="text-xs text-zinc-400 disabled:opacity-30">&rarr;</button>
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded-full bg-white/80 px-6 py-2 shadow-sm backdrop-blur dark:bg-zinc-800/80">
+                <button onClick={() => setListPageIdx(Math.max(0, listPageIdx - 1))} disabled={listPageIdx === 0} className="text-sm text-zinc-400 disabled:opacity-30">&larr;</button>
+                <span className="text-sm text-zinc-500">{listPageIdx + 1}/{totalPages}</span>
+                <button onClick={() => setListPageIdx(Math.min(totalPages - 1, listPageIdx + 1))} disabled={listPageIdx >= totalPages - 1} className="text-sm text-zinc-400 disabled:opacity-30">&rarr;</button>
               </div>
             ) : null
           })()}

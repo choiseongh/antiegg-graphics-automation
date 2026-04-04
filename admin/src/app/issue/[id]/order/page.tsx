@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
   DndContext,
@@ -45,12 +45,6 @@ export default function OrderPage() {
     return map
   }, [state.articles])
 
-  const globalIndexMap = useMemo(() => {
-    const m = new Map<string, number>()
-    state.articles.forEach((a, i) => m.set(`${a.type}-${a.no}`, i))
-    return m
-  }, [state.articles])
-
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
@@ -77,8 +71,22 @@ export default function OrderPage() {
     [grouped, dispatch],
   )
 
-  function handleToggleTitlePosition(globalIndex: number) {
-    dispatch({ type: "TOGGLE_TITLE_POSITION", payload: globalIndex })
+  const [sorting, setSorting] = useState(false)
+
+  async function handleSlackSort() {
+    setSorting(true)
+    try {
+      const resp = await fetch("/api/fetch-newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issue: state.issue }),
+      })
+      const data = await resp.json()
+      if (resp.ok && data.articleOrder) {
+        dispatch({ type: "SORT_BY_SLACK_ORDER", payload: data.articleOrder })
+      }
+    } catch { /* ignore */ }
+    setSorting(false)
   }
 
   if (state.articles.length === 0) {
@@ -95,9 +103,14 @@ export default function OrderPage() {
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
           아티클 순서 편집
         </h2>
-        <Button onClick={() => router.push(`/issue/${id}/edit`)}>
-          다음 &rarr;
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleSlackSort} disabled={sorting}>
+            {sorting ? "정렬 중..." : "자동정렬"}
+          </Button>
+          <Button onClick={() => router.push(`/issue/${id}/edit`)}>
+            다음 &rarr;
+          </Button>
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -106,8 +119,6 @@ export default function OrderPage() {
             key={type}
             type={type}
             articles={grouped[type]}
-            onToggleTitlePosition={handleToggleTitlePosition}
-            globalIndexMap={globalIndexMap}
           />
         ))}
       </DndContext>

@@ -30,12 +30,15 @@ interface SingleExportRequest {
     order: number
     title: string
     title2line: string
+    postTitle2line?: string
+    nlTitle2line?: string
+    introTitle?: string
     subtitle: string
     subtitle2line: string
     editor: string
     heroImage: string
     titlePosition: "top" | "bottom"
-    imagePosition?: "top" | "center" | "bottom"
+    imagePositions?: Record<string, { y: string; x: string }>
     introPages: string[]
   }
   cardType: string
@@ -47,6 +50,21 @@ interface SingleExportRequest {
     listPageIndex?: number
     lastPageFilename?: string
     articles?: { type: string; order: number; title: string; subtitle: string; heroImage: string; imagePosition?: string }[]
+  }
+}
+
+async function downloadImage(url: string, tmpDir: string): Promise<string> {
+  if (!url || url.startsWith("data:") || url.startsWith("file:")) return url
+  try {
+    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } })
+    if (!resp.ok) return url
+    const buf = Buffer.from(await resp.arrayBuffer())
+    const ext = (resp.headers.get("content-type") ?? "image/jpeg").includes("png") ? "png" : "jpg"
+    const localPath = path.join(tmpDir, `hero-${Date.now()}.${ext}`)
+    fs.writeFileSync(localPath, buf)
+    return `file://${localPath}`
+  } catch {
+    return url
   }
 }
 
@@ -62,6 +80,8 @@ export async function POST(request: NextRequest) {
     const typeLabel = article ? (TYPE_LABELS[article.type] ?? article.type) : ""
     const typeKr = article ? (TYPE_NAMES_KR[article.type] ?? article.type) : ""
     const title2line = article ? (article.title2line || article.title) : ""
+    const postTitle2line = article ? (article.postTitle2line || title2line) : ""
+    const nlTitle2line = article ? (article.nlTitle2line || title2line) : ""
     const subtitle2line = article ? (article.subtitle2line || article.subtitle) : ""
 
     let html: string
@@ -70,33 +90,37 @@ export async function POST(request: NextRequest) {
     let filename: string
 
     switch (cardType) {
-      case "story":
+      case "story": {
         if (!article) return NextResponse.json({ error: "article required" }, { status: 400 })
+        const storyHero = await downloadImage(article.heroImage, tmpDir)
         html = renderStoryCover({
           typeLabel, type: article.type, title2line, subtitle2line,
-          heroImage: article.heroImage, imagePosition: article.imagePosition as "top"|"center"|"bottom"|undefined, mode: "export", exportAssetsPath: assetsDir,
+          heroImage: storyHero, imagePosition: article.imagePositions?.story?.y as "top"|"center"|"bottom"|undefined, imagePositionX: article.imagePositions?.story?.x as "left"|"center"|"right"|undefined, mode: "export", exportAssetsPath: assetsDir,
         })
         width = 1080; height = 1920
         filename = `${typeKr} ${article.order}-1.png`
         break
-      case "post":
+      }
+      case "post": {
         if (!article) return NextResponse.json({ error: "article required" }, { status: 400 })
+        const postHero = await downloadImage(article.heroImage, tmpDir)
         html = renderPostCover({
-          typeLabel, type: article.type, title2line, editor: article.editor,
-          heroImage: article.heroImage, titlePosition: article.titlePosition,
-          imagePosition: article.imagePosition as "top"|"center"|"bottom"|undefined,
+          typeLabel, type: article.type, title2line: postTitle2line, editor: article.editor,
+          heroImage: postHero, titlePosition: article.titlePosition,
+          imagePosition: article.imagePositions?.post?.y as "top"|"center"|"bottom"|undefined, imagePositionX: article.imagePositions?.post?.x as "left"|"center"|"right"|undefined,
           mode: "export", exportAssetsPath: assetsDir,
         })
         width = 1080; height = 1350
         filename = `${typeKr} ${article.order}-2.png`
         break
+      }
       case "intro": {
         if (!article) return NextResponse.json({ error: "article required" }, { status: 400 })
         const idx = introIndex ?? 0
         const pageText = article.introPages[idx] ?? ""
         const paragraphs = pageText.split("\n\n").filter(Boolean).map((p) => p.replace(/\n/g, "<br>"))
         html = renderIntroPage({
-          articleTitle: article.title,
+          articleTitle: article.introTitle || article.title,
           introParagraphs: paragraphs.length > 0 ? paragraphs : [""],
           mode: "export", exportAssetsPath: assetsDir,
         })
@@ -137,7 +161,8 @@ export async function POST(request: NextRequest) {
       case "nl-article": {
         if (!body.nlData || !article) return NextResponse.json({ error: "nlData and article required" }, { status: 400 })
         const aTypeLabel = TYPE_LABELS[article.type] ?? article.type
-        html = renderNlPreviewArticle({ issue: body.nlData.issue, typeLabel: aTypeLabel, type: article.type, title: article.title2line || article.title, subtitle: article.subtitle, heroImage: article.heroImage, imagePosition: article.imagePosition as "top"|"center"|"bottom"|undefined, mode: "export", exportAssetsPath: assetsDir })
+        const nlHero = await downloadImage(article.heroImage, tmpDir)
+        html = renderNlPreviewArticle({ issue: body.nlData.issue, typeLabel: aTypeLabel, type: article.type, title: article.nlTitle2line || article.title2line || article.title, subtitle: article.subtitle, heroImage: nlHero, imagePosition: article.imagePositions?.["nl-preview"]?.y as "top"|"center"|"bottom"|undefined, imagePositionX: article.imagePositions?.["nl-preview"]?.x as "left"|"center"|"right"|undefined, mode: "export", exportAssetsPath: assetsDir })
         width = 1080; height = 1350
         filename = `뉴스레터 미리보기-${(body.nlData.articleIndex ?? 0) + 3}.png`
         break

@@ -1,4 +1,5 @@
 import type { ProcessTextResponse } from "./types"
+import { extractCoreIntro } from "./extract-core-intro"
 
 /**
  * 서문 분할 + 제목/부제목 2줄 분할 (규칙 기반)
@@ -14,8 +15,9 @@ export function processText(
   title: string,
   subtitle: string,
 ): ProcessTextResponse {
+  const coreIntro = extractCoreIntro(introRaw)
   return {
-    introPages: splitIntro(introRaw),
+    introPages: splitIntro(coreIntro),
     title2line: splitToTwoLines(title),
     subtitle2line: splitToTwoLines(subtitle),
   }
@@ -127,63 +129,74 @@ function formatPage(sentences: string[]): string {
  * 제목/부제목을 의미 단위로 2줄 분할
  *
  * 규칙:
- * - 조사 뒤, 절 경계, 수식어/명사구 경계에서 끊기
- * - \n으로 줄바꿈 표시
+ * 1. 어절 경계(공백)에서만 분할 — 단어 중간 절단 금지
+ * 2. 쉼표에서 줄바꿈 시 쉼표 삭제
+ * 3. 절 경계 쉼표(1개)만 우대, 나열형 쉼표(2개+)는 보너스 없음
+ * 4. 짧은 1행 선호 — 동점 시 1행이 짧은 쪽 우선
  */
-function splitToTwoLines(text: string): string {
+export function splitToTwoLines(text: string): string {
   if (!text) return ""
 
-  const length = text.length
-  if (length <= 8) return text
-
-  const mid = Math.floor(length / 2)
-
-  const breakPatterns = [
-    /[은는이가을를에서의로와과도만](?=\s|\S)/g,
-    /,\s*/g,
-    /\s+/g,
-  ]
-
-  let bestPos = -1
-  let bestDist = Infinity
-
-  for (const pattern of breakPatterns) {
-    let match: RegExpExecArray | null
-    const regex = new RegExp(pattern.source, pattern.flags)
-
-    while ((match = regex.exec(text)) !== null) {
-      const pos = match.index + match[0].length
-      if (pos <= 2 || pos >= length - 2) continue
-
-      const dist = Math.abs(pos - mid)
-      if (dist < bestDist) {
-        bestDist = dist
-        bestPos = pos
-      }
-    }
-
-    if (bestPos !== -1 && bestDist <= mid * 0.6) break
+  if (text.includes("\n")) {
+    return text.replace(/,\s*\n/g, "\n").trim()
   }
 
-  if (bestPos === -1) {
-    const spaceRegex = /\s+/g
-    let match: RegExpExecArray | null
-    while ((match = spaceRegex.exec(text)) !== null) {
-      const pos = match.index
-      const dist = Math.abs(pos - mid)
-      if (dist < bestDist) {
-        bestDist = dist
-        bestPos = pos
-      }
+  const trimmed = text.trim()
+  if (trimmed.length <= 3) return trimmed
+
+  const spaces: number[] = []
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] === " ") spaces.push(i)
+  }
+
+  if (spaces.length === 0) return trimmed
+
+  const commaCount = (trimmed.match(/,/g) ?? []).length
+  const isEnumeration = commaCount >= 2
+  const adnominalEnd = /[한된진던]$/
+
+  let bestSpace = spaces[0]
+  let bestScore = -Infinity
+
+  for (const sp of spaces) {
+    const rawL1 = trimmed.slice(0, sp)
+    const l2 = trimmed.slice(sp + 1)
+
+    const hasComma = rawL1.endsWith(",") || rawL1.endsWith("，")
+    const effL1 = hasComma ? rawL1.length - 1 : rawL1.length
+    const effL2 = l2.length
+
+    if (effL1 <= 0 || effL2 <= 0) continue
+
+    const diff = Math.abs(effL1 - effL2)
+    let score = -diff
+
+    if (hasComma && !isEnumeration && effL1 >= 6) {
+      score += 12
+    }
+
+    const lastWord = rawL1.replace(/[,，]$/, "").split(/\s+/).pop() ?? ""
+    if (adnominalEnd.test(lastWord) && lastWord.length >= 2) {
+      score += 5
+    }
+
+    const ratio = Math.min(effL1, effL2) / Math.max(effL1, effL2)
+    if (ratio < 0.2) score -= 30
+
+    if (score > bestScore) {
+      bestScore = score
+      bestSpace = sp
     }
   }
 
-  if (bestPos === -1) return text
+  let line1 = trimmed.slice(0, bestSpace).trim()
+  const line2 = trimmed.slice(bestSpace + 1).trim()
 
-  const line1 = text.slice(0, bestPos).trim()
-  const line2 = text.slice(bestPos).trim()
+  if (line1.endsWith(",") || line1.endsWith("，")) {
+    line1 = line1.slice(0, -1).trim()
+  }
 
-  if (!line1 || !line2) return text
+  if (!line1 || !line2) return trimmed
 
   return `${line1}\n${line2}`
 }

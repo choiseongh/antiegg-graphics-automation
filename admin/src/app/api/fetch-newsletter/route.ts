@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { splitToTwoLines } from "@/lib/text-processing"
 
 const SLACK_CHANNEL_ID = "C03CXG0P6A3" // 1-팀-콘텐츠
 
@@ -16,26 +17,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "SLACK_BOT_TOKEN이 설정되지 않았습니다." }, { status: 500 })
     }
 
-    // conversations.history로 최근 메시지 검색
-    const searchResp = await fetch(
-      `https://slack.com/api/search.messages?query=${encodeURIComponent(`${issue}호 뉴스레터 제목 서문 in:<#${SLACK_CHANNEL_ID}>`)}&count=5&sort=timestamp&sort_dir=desc`,
-      {
-        headers: { Authorization: `Bearer ${slackToken}` },
-      },
+    // conversations.history로 채널 메시지 조회 (봇 토큰 호환)
+    const historyResp = await fetch(
+      `https://slack.com/api/conversations.history?channel=${SLACK_CHANNEL_ID}&limit=100`,
+      { headers: { Authorization: `Bearer ${slackToken}` } },
     )
 
-    if (!searchResp.ok) {
+    if (!historyResp.ok) {
       return NextResponse.json({ error: "Slack API 호출 실패" }, { status: 500 })
     }
 
-    const searchData = await searchResp.json()
-    if (!searchData.ok) {
-      return NextResponse.json({ error: `Slack 오류: ${searchData.error}` }, { status: 500 })
+    const historyData = await historyResp.json()
+    if (!historyData.ok) {
+      return NextResponse.json({ error: `Slack 오류: ${historyData.error}` }, { status: 500 })
     }
 
-    const messages = searchData.messages?.matches ?? []
-    const targetMsg = messages.find((m: { text: string }) =>
-      m.text.includes(`${issue}호`) && m.text.includes("뉴스레터") && m.text.includes("[제목]"),
+    const messages: { text: string }[] = historyData.messages ?? []
+    const targetMsg = messages.find((m) =>
+      m.text.includes(`${issue}호 뉴스레터`) && m.text.includes("[제목]"),
     )
 
     if (!targetMsg) {
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function parseNewsletterMessage(text: string): { title: string; intro: string; publisher: string } {
+function parseNewsletterMessage(text: string): { title: string; intro: string; publisher: string; articleOrder: string[] } {
   // 제목 추출: [제목] 이후 첫 번째 :egg: 줄
   let title = ""
   const titleSection = text.split("[제목]")[1] ?? ""
@@ -76,7 +75,7 @@ function parseNewsletterMessage(text: string): { title: string; intro: string; p
     let foundFirstLine = false
 
     for (const line of introLines) {
-      const cleaned = line.replace(/^>\s*/, "").trim()
+      const cleaned = line.replace(/^(?:&gt;|>)\s*/, "").trim()
       if (!cleaned || cleaned.startsWith("[서문]")) continue
 
       // 첫 줄은 "ANTIEGG 페르소나..." 설명이므로 스킵
@@ -93,11 +92,30 @@ function parseNewsletterMessage(text: string): { title: string; intro: string; p
       bodyLines.push(cleaned)
     }
 
-    intro = bodyLines.join(" ").trim()
+    const joined = bodyLines.join(" ").trim()
+    const lastSentenceMatch = joined.match(/^(.*[.!?…]\s*)([^.!?…]+[.!?…]*)$/)
+    if (lastSentenceMatch && lastSentenceMatch[2].trim()) {
+      intro = `${lastSentenceMatch[1]}**${lastSentenceMatch[2].trim()}**`
+    } else {
+      intro = joined
+    }
   }
 
-  // 발행인: 메시지 작성자 (메시지에서 직접 파싱하기 어려우므로 기본값)
+  // 아티클 순서 추출: [아티클 순서] 이후 번호 매겨진 항목들
+  const articleOrder: string[] = []
+  const orderStart = text.indexOf("[아티클 순서]")
+  if (orderStart !== -1) {
+    const orderSection = text.slice(orderStart)
+    const lines = orderSection.split("\n")
+    for (const line of lines) {
+      const match = line.match(/^\d+\.\s+(.+)/)
+      if (match) {
+        articleOrder.push(match[1].trim())
+      }
+    }
+  }
+
   const publisher = "형운"
 
-  return { title, intro, publisher }
+  return { title: splitToTwoLines(title), intro, publisher, articleOrder }
 }

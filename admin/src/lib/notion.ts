@@ -2,7 +2,18 @@ import type { ArticleType, NotionArticle } from "./types"
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY ?? ""
 const NOTION_DB_ID = process.env.NOTION_DB_ID ?? ""
-const NOTION_STATUS_FILTER = "수목금 / 그래픽 이미지 작업"
+const REFERENCE_ISSUE = 233
+const REFERENCE_DATE = "2026-03-30"
+
+export function issueToDate(issue: number): string {
+  const [y, m, d] = REFERENCE_DATE.split("-").map(Number)
+  const ref = new Date(y, m - 1, d)
+  ref.setDate(ref.getDate() + (issue - REFERENCE_ISSUE) * 7)
+  const yy = ref.getFullYear()
+  const mm = String(ref.getMonth() + 1).padStart(2, "0")
+  const dd = String(ref.getDate()).padStart(2, "0")
+  return `${yy}-${mm}-${dd}`
+}
 
 const TYPE_MAP: Record<string, ArticleType> = {
   CURATION: "curation",
@@ -19,7 +30,7 @@ function normalizeUrl(url: string): string {
   return trimmed.replace(/\/+$/, "")
 }
 
-export async function fetchArticlesFromNotion(): Promise<NotionArticle[]> {
+export async function fetchArticlesFromNotion(pubDate: string): Promise<NotionArticle[]> {
   if (!NOTION_API_KEY) {
     throw new Error("NOTION_API_KEY가 설정되지 않았습니다.")
   }
@@ -35,8 +46,8 @@ export async function fetchArticlesFromNotion(): Promise<NotionArticle[]> {
       },
       body: JSON.stringify({
         filter: {
-          property: "상태",
-          select: { equals: NOTION_STATUS_FILTER },
+          property: "발행일",
+          date: { equals: pubDate },
         },
       }),
     },

@@ -16,8 +16,8 @@ interface NlStoryListData {
 
 const LABEL_COLORS: Record<string, string> = {
   curation: "#F7343C",
-  gray: "#9CA3AF",
-  branded: "#F59E0B",
+  gray: "#F7343C",
+  branded: "#F7343C",
 }
 
 export function renderNlStoryList(data: NlStoryListData): string {
@@ -43,10 +43,10 @@ export function renderNlStoryList(data: NlStoryListData): string {
   .logotype { height:auto; }
   .newsletter-svg { height:auto; }
   /* Article List */
-  .list { width:100%; max-height:924px; overflow:hidden; display:flex; flex-direction:column; gap:20px; }
-  .item { display:flex; align-items:center; gap:47px; height:98px; padding:24px 51px; background:rgba(255,255,255,0.05); border-radius:12px; flex-shrink:0; }
+  .list { width:100%; display:flex; flex-direction:column; gap:20px; }
+  .item { display:flex; align-items:center; gap:47px; min-height:98px; padding:24px 51px; background:rgba(255,255,255,0.05); border-radius:12px; flex-shrink:0; }
   .type { width:138px; flex-shrink:0; font-size:24.48px; font-weight:900; line-height:110%; letter-spacing:-0.49px; text-transform:uppercase; }
-  .article-title { color:#FFF; font-size:36px; font-weight:600; line-height:140%; letter-spacing:-0.72px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .article-title { color:#FFF; font-size:36px; font-weight:600; line-height:140%; letter-spacing:-0.72px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
   /* Bottom — link sticker */
   .link-sticker { position:absolute; bottom:86px; left:50%; transform:translateX(-50%); width:250px; height:92px; border-top:1px solid #45474D; border-bottom:1px solid #45474D; }
 </style></head>

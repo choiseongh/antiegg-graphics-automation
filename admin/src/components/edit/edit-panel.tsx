@@ -5,12 +5,18 @@ import { useIssue } from "@/context/issue-context"
 import { useToast } from "@/context/toast-context"
 import { Button } from "@/components/ui/button"
 import { CharCounter } from "@/components/ui/char-counter"
-import type { EditArticle, ActiveTab } from "@/lib/types"
+import type { EditArticle, ActiveTab, ImagePosY, ImagePosX } from "@/lib/types"
 
-const IMAGE_POSITIONS = [
+const IMAGE_POSITIONS_Y = [
   { value: "top" as const, label: "상" },
   { value: "center" as const, label: "중" },
   { value: "bottom" as const, label: "하" },
+]
+
+const IMAGE_POSITIONS_X = [
+  { value: "left" as const, label: "좌" },
+  { value: "center" as const, label: "중" },
+  { value: "right" as const, label: "우" },
 ]
 
 interface EditPanelProps {
@@ -53,54 +59,19 @@ export function EditPanel({ article, index, activeTab }: EditPanelProps) {
     update({ introPages: pages.slice(0, -1) })
   }
 
-  async function handleAutoSplit() {
-    try {
-      const resp = await fetch("/api/process-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          introRaw: article.introRaw,
-          title: article.title,
-          subtitle: article.subtitle,
-        }),
-      })
-      const result = await resp.json()
-      if (!resp.ok) {
-        addToast(result.error ?? "처리 실패", "error")
-        return
-      }
-      dispatch({ type: "PROCESS_TEXT", payload: { index, result } })
-      addToast("자동 분할 완료", "success")
-    } catch {
-      addToast("네트워크 오류", "error")
-    }
-  }
-
-  function handleReset() {
-    dispatch({ type: "RESET_ARTICLE", payload: { index } })
-    addToast("초기화 완료", "info")
-  }
-
   const introPages = article.introPages.length > 0 ? article.introPages : ["", ""]
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top: action buttons — flush to top */}
-      <div className="flex shrink-0 items-center justify-between">
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleAutoSplit} className="!px-3 !py-1.5 !text-sm">자동 분할</Button>
-          <Button variant="ghost" onClick={handleReset} className="!px-3 !py-1.5 !text-sm">초기화</Button>
-        </div>
-      </div>
 
       {/* 2-column layout */}
       <div className="flex min-h-0 flex-1 gap-10 pt-5">
       {/* Left column: title, subtitle, editor, toggles */}
       <div className="flex flex-col gap-8" style={{ width: "38%" }}>
-        <Field label="제목 (2줄)">
+        <Field label={activeTab === "post" ? "제목 — 표지 (2줄)" : activeTab === "nl-preview" ? "제목 — 뉴스레터 (2줄)" : "제목 — 스토리 (2줄)"}>
           <textarea
-            value={article.title2line}
-            onChange={(e) => update({ title2line: e.target.value })}
+            value={activeTab === "post" ? (article.postTitle2line || article.title2line) : activeTab === "nl-preview" ? (article.nlTitle2line || article.title2line) : article.title2line}
+            onChange={(e) => update(activeTab === "post" ? { postTitle2line: e.target.value } : activeTab === "nl-preview" ? { nlTitle2line: e.target.value } : { title2line: e.target.value })}
             rows={2}
             className="input-field"
             placeholder={article.title}
@@ -125,6 +96,7 @@ export function EditPanel({ article, index, activeTab }: EditPanelProps) {
           />
         </Field>
 
+
         <Field label="제목 위치">
           <div className="flex gap-2">
             {(["top", "bottom"] as const).map((pos) => (
@@ -146,28 +118,22 @@ export function EditPanel({ article, index, activeTab }: EditPanelProps) {
           </div>
         </Field>
 
-        <Field label="이미지 위치">
-          <div className="flex gap-2">
-            {IMAGE_POSITIONS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => update({ imagePosition: p.value })}
-                className={`rounded border px-3 py-1 text-xs ${
-                  article.imagePosition === p.value
-                    ? "border-zinc-200 bg-zinc-200 font-semibold text-zinc-900 dark:border-zinc-700 dark:bg-zinc-700 dark:text-zinc-100"
-                    : "border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </Field>
+        <ImagePositionControls article={article} activeTab={activeTab} update={update} />
 
       </div>
 
       {/* Right column: intro pages */}
       <div className="flex flex-1 flex-col gap-3">
+        {activeTab.startsWith("intro") && (
+          <Field label="서문 하단 제목 (비우면 원제 사용)">
+            <input
+              value={article.introTitle}
+              onChange={(e) => update({ introTitle: e.target.value })}
+              className="input-field"
+              placeholder={article.title}
+            />
+          </Field>
+        )}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-500">서문 ({introPages.length}페이지)</span>
           <div className="flex gap-1">
@@ -194,6 +160,55 @@ export function EditPanel({ article, index, activeTab }: EditPanelProps) {
       </div>
     </div>
     </div>
+  )
+}
+
+const TEMPLATE_KEYS = ["story", "post", "nl-preview"] as const
+type TemplateKey = (typeof TEMPLATE_KEYS)[number]
+
+const TEMPLATE_LABEL: Record<TemplateKey, string> = {
+  story: "스토리",
+  post: "표지",
+  "nl-preview": "뉴스레터",
+}
+
+function ImagePositionControls({ article, activeTab, update }: { article: EditArticle; activeTab: ActiveTab; update: (u: Partial<EditArticle>) => void }) {
+  const templateKey: TemplateKey | null = TEMPLATE_KEYS.includes(activeTab as TemplateKey) ? (activeTab as TemplateKey) : null
+  if (!templateKey) return null
+
+  const pos = article.imagePositions[templateKey]
+  const label = TEMPLATE_LABEL[templateKey]
+
+  function updatePos(axis: "y" | "x", value: ImagePosY | ImagePosX) {
+    if (!templateKey) return
+    update({
+      imagePositions: {
+        ...article.imagePositions,
+        [templateKey]: { ...article.imagePositions[templateKey], [axis]: value },
+      },
+    })
+  }
+
+  const btnClass = (active: boolean) =>
+    `rounded border px-3 py-1 text-xs ${active ? "border-zinc-200 bg-zinc-200 font-semibold text-zinc-900 dark:border-zinc-700 dark:bg-zinc-700 dark:text-zinc-100" : "border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"}`
+
+  return (
+    <>
+      <Field label={`이미지 위치 — ${label} (수직)`}>
+        <div className="flex gap-2">
+          {IMAGE_POSITIONS_Y.map((p) => (
+            <button key={p.value} onClick={() => updatePos("y", p.value)} className={btnClass(pos.y === p.value)}>{p.label}</button>
+          ))}
+        </div>
+      </Field>
+      <Field label={`이미지 위치 — ${label} (수평)`}>
+        <div className="flex gap-2">
+          {IMAGE_POSITIONS_X.map((p) => (
+            <button key={p.value} onClick={() => updatePos("x", p.value)} className={btnClass(pos.x === p.value)}>{p.label}</button>
+          ))}
+        </div>
+      </Field>
+    </>
   )
 }
 

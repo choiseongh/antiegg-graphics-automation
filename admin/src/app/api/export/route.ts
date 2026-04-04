@@ -35,6 +35,21 @@ interface ExportRequest {
   newsletter?: NewsletterData
 }
 
+async function downloadImage(url: string, tmpDir: string): Promise<string> {
+  if (!url || url.startsWith("data:") || url.startsWith("file:")) return url
+  try {
+    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } })
+    if (!resp.ok) return url
+    const buf = Buffer.from(await resp.arrayBuffer())
+    const ext = (resp.headers.get("content-type") ?? "image/jpeg").includes("png") ? "png" : "jpg"
+    const localPath = path.join(tmpDir, `hero-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`)
+    fs.writeFileSync(localPath, buf)
+    return `file://${localPath}`
+  } catch {
+    return url
+  }
+}
+
 export async function POST(request: NextRequest) {
   let browser = null
 
@@ -67,7 +82,11 @@ export async function POST(request: NextRequest) {
       const prefix = `${typeKr} ${article.order}`
 
       const title2line = article.title2line || article.title
+      const postTitle2line = article.postTitle2line || title2line
+      const nlTitle2line = article.nlTitle2line || title2line
       const subtitle2line = article.subtitle2line || article.subtitle
+
+      const heroDataUrl = await downloadImage(article.heroImage, tmpDir)
 
       // 1. Story cover (1080x1920)
       const storyHtml = renderStoryCover({
@@ -75,8 +94,9 @@ export async function POST(request: NextRequest) {
         type: article.type,
         title2line,
         subtitle2line,
-        heroImage: article.heroImage,
-        imagePosition: article.imagePosition as "top" | "center" | "bottom" | undefined,
+        heroImage: heroDataUrl,
+        imagePosition: article.imagePositions?.story?.y,
+        imagePositionX: article.imagePositions?.story?.x,
         mode: "export",
         exportAssetsPath: assetsDir,
       })
@@ -87,11 +107,12 @@ export async function POST(request: NextRequest) {
       const postHtml = renderPostCover({
         typeLabel,
         type: article.type,
-        title2line,
+        title2line: postTitle2line,
         editor: article.editor,
-        heroImage: article.heroImage,
+        heroImage: heroDataUrl,
         titlePosition: article.titlePosition,
-        imagePosition: article.imagePosition as "top" | "center" | "bottom" | undefined,
+        imagePosition: article.imagePositions?.post?.y,
+        imagePositionX: article.imagePositions?.post?.x,
         mode: "export",
         exportAssetsPath: assetsDir,
       })
@@ -107,7 +128,7 @@ export async function POST(request: NextRequest) {
           .filter(Boolean)
           .map((p) => p.replace(/\n/g, "<br>"))
         const introHtml = renderIntroPage({
-          articleTitle: article.title,
+          articleTitle: article.introTitle || article.title,
           introParagraphs: paragraphs.length > 0 ? paragraphs : [""],
           mode: "export",
           exportAssetsPath: assetsDir,
@@ -150,8 +171,9 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < articles.length; i++) {
         const a = articles[i]
         const typeLabel = TYPE_LABELS[a.type] ?? a.type
+        const nlHero = await downloadImage(a.heroImage, tmpDir)
         const nlArtHtml = renderNlPreviewArticle({
-          issue, typeLabel, type: a.type, title: a.title, subtitle: a.subtitle, heroImage: a.heroImage, ...nlMode,
+          issue, typeLabel, type: a.type, title: a.nlTitle2line || a.title2line || a.title, subtitle: a.subtitle, heroImage: nlHero, ...nlMode,
         })
         const nlArtPng = await renderToPng(browser, nlArtHtml, 1080, 1350, tmpDir)
         archive.append(nlArtPng, { name: `뉴스레터 미리보기-${i + 3}.png` })

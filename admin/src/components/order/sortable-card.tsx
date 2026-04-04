@@ -3,14 +3,12 @@
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { EditArticle } from "@/lib/types"
-import { TitlePositionToggle } from "./title-position-toggle"
 
 interface SortableCardProps {
   article: EditArticle
-  onToggleTitlePosition: () => void
 }
 
-export function SortableCard({ article, onToggleTitlePosition }: SortableCardProps) {
+export function SortableCard({ article }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `${article.type}-${article.no}`,
   })
@@ -43,19 +41,13 @@ export function SortableCard({ article, onToggleTitlePosition }: SortableCardPro
         {article.order}
       </span>
 
-      <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
-        <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {article.title}
-        </span>
-        <span className="text-xs text-zinc-500">
-          {article.editor} &middot; {article.introCharCount}자
-        </span>
-      </div>
+      <span className="flex-1 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+        {article.title}
+      </span>
 
-      <TitlePositionToggle
-        position={article.titlePosition}
-        onToggle={onToggleTitlePosition}
-      />
+      <span className="shrink-0 text-xs text-zinc-500">
+        {article.editor} &middot; {article.introCharCount}자
+      </span>
     </div>
   )
 }

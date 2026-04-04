@@ -51,11 +51,18 @@ export interface ProcessTextResponse {
 
 // --- Edit State ---
 
+export type ImagePosY = "top" | "center" | "bottom"
+export type ImagePosX = "left" | "center" | "right"
+export interface ImagePos { y: ImagePosY; x: ImagePosX }
+
 export interface EditArticle extends RawArticle {
   title2line: string
+  postTitle2line: string
+  nlTitle2line: string
+  introTitle: string
   subtitle2line: string
   introPages: string[]
-  imagePosition: "top" | "center" | "bottom"
+  imagePositions: Record<"story" | "post" | "nl-preview", ImagePos>
 }
 
 export type ActiveTab = "story" | "post" | "nl-preview" | "intro1" | "intro2" | "intro3"
@@ -93,6 +100,9 @@ export type IssueAction =
   | { type: "TOGGLE_TITLE_POSITION"; payload: number }
   | { type: "SET_STATUS"; payload: IssueState["status"] }
   | { type: "RESTORE"; payload: IssueState }
+  | { type: "SORT_BY_SLACK_ORDER"; payload: string[] }
+  | { type: "UNDO" }
+  | { type: "REDO" }
 
 export interface WorkHistoryEntry {
   issue: number

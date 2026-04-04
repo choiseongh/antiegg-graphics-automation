@@ -87,7 +87,7 @@ export function ThumbnailGrid({ articles, newsletter, issue }: ThumbnailGridProp
           introIndex: card.introIndex,
           nlData: card.nlData ? {
             ...card.nlData,
-            articles: articles.map((a) => ({ type: a.type, order: a.order, title: a.title, subtitle: a.subtitle, heroImage: a.heroImage, imagePosition: a.imagePosition })),
+            articles: articles.map((a) => ({ type: a.type, order: a.order, title: a.title, subtitle: a.subtitle, heroImage: a.heroImage })),
           } : undefined,
         }),
       })

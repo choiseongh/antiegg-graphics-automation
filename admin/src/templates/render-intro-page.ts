@@ -23,7 +23,7 @@ export function renderIntroPage(data: IntroPageData): string {
   .grain { position:absolute; top:0; left:0; width:1080px; height:1350px; pointer-events:none; z-index:1; }
   .grain img { width:1080px; height:1350px; }
   .body-area { position:absolute; top:70px; left:70px; width:940px; max-height:960px; overflow:hidden; z-index:2; }
-  .body-text { width:100%; max-height:960px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:9; color:#17181A; font-size:56px; font-weight:400; font-style:normal; line-height:175%; letter-spacing:-1.12px; word-break:keep-all; overflow-wrap:break-word; }
+  .body-text { width:100%; max-height:960px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:9; color:#17181A; font-size:56px; font-weight:400; font-style:normal; line-height:175%; letter-spacing:-1.12px; word-break:break-all; }
   .body-text p { margin-bottom:24px; }
   .body-text p:last-child { margin-bottom:0; }
   .bottom-contents { position:absolute; bottom:65px; left:90px; width:900px; height:55px; display:flex; justify-content:space-between; align-items:center; gap:40px; z-index:2; }
