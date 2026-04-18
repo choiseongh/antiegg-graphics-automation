@@ -124,11 +124,11 @@ export function normalizeTitle(s: string): string {
     .toLowerCase()
 }
 
-export function sortBySlackOrder<T extends { type: ArticleType; title: string; notionTitle?: string }>(
+export function sortBySlackOrder<T extends { type: ArticleType; order: number; title: string; notionTitle?: string }>(
   articles: T[],
   slackOrder: SlackOrderItem[],
 ): (T & { slackOrderMatched: boolean })[] {
-  return articles.map((article) => {
+  const sorted = articles.map((article) => {
     const candidates = [article.title, article.notionTitle ?? ""]
       .filter(Boolean)
       .map(normalizeTitle)
@@ -140,7 +140,11 @@ export function sortBySlackOrder<T extends { type: ArticleType; title: string; n
       )
     })
     return { article, idx: idx === -1 ? 999 : idx, matched: idx !== -1 }
+  }).sort((a, b) => a.idx - b.idx)
+
+  const typeCounters: Record<string, number> = {}
+  return sorted.map(({ article, matched }) => {
+    typeCounters[article.type] = (typeCounters[article.type] ?? 0) + 1
+    return { ...article, order: typeCounters[article.type], slackOrderMatched: matched }
   })
-    .sort((a, b) => a.idx - b.idx)
-    .map(({ article, matched }, i) => ({ ...article, order: i + 1, slackOrderMatched: matched }))
 }
