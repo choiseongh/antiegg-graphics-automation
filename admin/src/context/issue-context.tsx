@@ -14,6 +14,7 @@ import type {
   EditArticle,
   RawArticle,
 } from "@/lib/types"
+import { normalizeTitle } from "@/lib/slack"
 
 const UNDOABLE_ACTIONS = new Set([
   "UPDATE_ARTICLE", "PROCESS_TEXT", "RESET_ARTICLE",
@@ -152,17 +153,26 @@ function issueReducer(state: IssueState, action: IssueAction): IssueState {
       return { ...state, newsletter: { ...state.newsletter, ...action.payload } }
 
     case "SORT_BY_SLACK_ORDER": {
-      const slackTitles = action.payload
+      const slackTitles = action.payload.map(normalizeTitle)
       const sorted = state.articles.map((article) => {
+        const candidates = [article.title, article.notionTitle ?? ""]
+          .filter(Boolean)
+          .map(normalizeTitle)
         const idx = slackTitles.findIndex(
-          (t) => t === article.title || article.title.includes(t) || t.includes(article.title),
+          (t) => candidates.some((c) => c === t || c.includes(t) || t.includes(c)),
         )
-        return { article, idx: idx === -1 ? 999 : idx }
+        return { article, idx: idx === -1 ? 999 : idx, matched: idx !== -1 }
       })
         .sort((a, b) => a.idx - b.idx)
-        .map(({ article }, i) => ({ ...article, no: i + 1, order: i + 1 }))
+        .map(({ article, matched }, i) => ({ ...article, no: i + 1, slackOrderMatched: matched }))
 
-      return { ...state, articles: sorted }
+      const typeCounters: Record<string, number> = {}
+      const withOrder = sorted.map((article) => {
+        typeCounters[article.type] = (typeCounters[article.type] ?? 0) + 1
+        return { ...article, order: typeCounters[article.type] }
+      })
+
+      return { ...state, articles: withOrder }
     }
 
     case "RESTORE": {

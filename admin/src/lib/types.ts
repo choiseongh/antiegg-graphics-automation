@@ -14,12 +14,14 @@ export interface RawArticle {
   order: number
   slug: string
   title: string
+  notionTitle: string
   subtitle: string
   editor: string
   heroImage: string
   introRaw: string
   introCharCount: number
   titlePosition: "top" | "bottom"
+  slackOrderMatched?: boolean
   title2line?: string
   subtitle2line?: string
   introPages?: string[]

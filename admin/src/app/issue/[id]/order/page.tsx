@@ -97,6 +97,8 @@ export default function OrderPage() {
     )
   }
 
+  const unmatchedCount = state.articles.filter((a) => a.slackOrderMatched === false).length
+
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -112,6 +114,16 @@ export default function OrderPage() {
           </Button>
         </div>
       </div>
+
+      {unmatchedCount > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100">
+          <strong>⚠ Slack 순서 매칭 실패: {unmatchedCount}건</strong>
+          <p className="mt-1 text-xs">
+            Slack 아티클 순서 메시지와 제목이 일치하지 않아 자동 배치되지 못한 아티클이 있습니다.
+            아래 <span className="font-semibold">매칭 실패</span> 표시된 카드를 확인하고 수동으로 순서를 조정해주세요.
+          </p>
+        </div>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         {TYPES.map((type) => (

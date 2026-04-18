@@ -62,16 +62,32 @@ export function parseArticleOrder(text: string): SlackOrderItem[] {
   return result
 }
 
-export function sortBySlackOrder<T extends { type: ArticleType; title: string }>(
+export function normalizeTitle(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201F\u2033]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+export function sortBySlackOrder<T extends { type: ArticleType; title: string; notionTitle?: string }>(
   articles: T[],
   slackOrder: SlackOrderItem[],
-): T[] {
+): (T & { slackOrderMatched: boolean })[] {
   return articles.map((article) => {
-    const idx = slackOrder.findIndex(
-      (s) => s.type === article.type && (s.title === article.title || article.title.includes(s.title) || s.title.includes(article.title)),
-    )
-    return { article, idx: idx === -1 ? 999 : idx }
+    const candidates = [article.title, article.notionTitle ?? ""]
+      .filter(Boolean)
+      .map(normalizeTitle)
+    const idx = slackOrder.findIndex((s) => {
+      if (s.type !== article.type) return false
+      const slackTitle = normalizeTitle(s.title)
+      return candidates.some(
+        (c) => c === slackTitle || c.includes(slackTitle) || slackTitle.includes(c),
+      )
+    })
+    return { article, idx: idx === -1 ? 999 : idx, matched: idx !== -1 }
   })
     .sort((a, b) => a.idx - b.idx)
-    .map(({ article }, i) => ({ ...article, order: i + 1 }))
+    .map(({ article, matched }, i) => ({ ...article, order: i + 1, slackOrderMatched: matched }))
 }

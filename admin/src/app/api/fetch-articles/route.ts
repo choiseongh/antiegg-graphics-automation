@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
         order: typeCounters[artType],
         slug,
         title,
+        notionTitle: notionArt.notionTitle,
         subtitle,
         editor: normalizeEditorName(post.authors?.[0]?.name ?? ""),
         heroImage: post.feature_image ?? "",
