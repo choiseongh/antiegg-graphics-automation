@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
 
       const introRaw = extractIntro(post.html ?? "")
 
-      const title = post.title ?? ""
+      const ghostTitle = post.title ?? ""
+      const title = notionArt.notionTitle || ghostTitle
       const subtitle = post.custom_excerpt ?? ""
       const processed = processText(introRaw, title, subtitle)
 
