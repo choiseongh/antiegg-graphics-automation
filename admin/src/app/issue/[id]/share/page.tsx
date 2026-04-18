@@ -152,7 +152,7 @@ export default function SharePage() {
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-          {issue}호 공유
+          {issue}호 추출/공유
         </h2>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={handleZipDownload} disabled={downloading || sharing}>

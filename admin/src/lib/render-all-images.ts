@@ -66,18 +66,12 @@ async function renderHtmlToBuffer(
   opts: RenderOptions,
 ): Promise<Buffer> {
   const scale = opts.preview ? 360 / width : 1
-  const outW = Math.round(width * scale)
-  const outH = Math.round(height * scale)
   const tmpFile = path.join(tmpDir, `render-${Date.now()}-${Math.random().toString(36).slice(2)}.html`)
   fs.writeFileSync(tmpFile, html, "utf-8")
-  const page = await browser.newPage({ viewport: { width: outW, height: outH }, deviceScaleFactor: 1 })
-  if (scale !== 1) {
-    await page.addInitScript((s) => {
-      const style = document.createElement("style")
-      style.textContent = `html { zoom: ${s}; }`
-      document.documentElement.appendChild(style)
-    }, scale)
-  }
+  const page = await browser.newPage({
+    viewport: { width, height },
+    deviceScaleFactor: scale,
+  })
   await page.goto(`file://${tmpFile}`, { waitUntil: "networkidle" })
   const screenshot = await page.screenshot({
     fullPage: false,

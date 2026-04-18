@@ -179,21 +179,26 @@ function issueReducer(state: IssueState, action: IssueAction): IssueState {
     case "RESTORE": {
       const restored = action.payload
       const defaultPos = { y: "center" as const, x: "center" as const }
+      const typeCounters: Record<string, number> = {}
       return {
         ...restored,
         newsletter: restored.newsletter ?? { title: "", intro: "", publisher: "" },
         editMode: restored.editMode ?? "articles",
-        articles: restored.articles.map((a) => ({
-          ...a,
-          postTitle2line: a.postTitle2line ?? "",
-          nlTitle2line: a.nlTitle2line ?? "",
-          introTitle: a.introTitle ?? "",
-          imagePositions: a.imagePositions ?? {
-            story: { ...defaultPos },
-            post: { ...defaultPos },
-            "nl-preview": { ...defaultPos },
-          },
-        })),
+        articles: restored.articles.map((a) => {
+          typeCounters[a.type] = (typeCounters[a.type] ?? 0) + 1
+          return {
+            ...a,
+            order: typeCounters[a.type],
+            postTitle2line: a.postTitle2line ?? "",
+            nlTitle2line: a.nlTitle2line ?? "",
+            introTitle: a.introTitle ?? "",
+            imagePositions: a.imagePositions ?? {
+              story: { ...defaultPos },
+              post: { ...defaultPos },
+              "nl-preview": { ...defaultPos },
+            },
+          }
+        }),
       }
     }
 
