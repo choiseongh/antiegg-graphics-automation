@@ -10,7 +10,7 @@ import type { ReactNode } from "react"
 const steps = [
   { label: "순서", path: "order" },
   { label: "편집", path: "edit" },
-  { label: "추출", path: "export" },
+  { label: "공유", path: "share" },
 ]
 
 export default function IssueLayout({ children }: { children: ReactNode }) {
