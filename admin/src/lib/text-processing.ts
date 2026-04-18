@@ -154,6 +154,7 @@ export function splitToTwoLines(text: string): string {
   const commaCount = (trimmed.match(/,/g) ?? []).length
   const isEnumeration = commaCount >= 2
   const adnominalEnd = /[한된진던]$/
+  const particleEnd = /(?:을|를|은|는|이|가|의|에서|에|으로|로|와|과|도)$/
 
   let bestSpace = spaces[0]
   let bestScore = -Infinity
@@ -181,6 +182,9 @@ export function splitToTwoLines(text: string): string {
     }
 
     const ratio = Math.min(effL1, effL2) / Math.max(effL1, effL2)
+    if (particleEnd.test(lastWord) && lastWord.length >= 2 && ratio >= 0.3) {
+      score += 7
+    }
     if (ratio < 0.2) score -= 30
 
     if (score > bestScore) {
