@@ -86,6 +86,9 @@ export function groupIntoBatches<T extends { name: string }>(
       if (isLastGroup && lastPageImg && files.length + 1 <= MAX_FILES_PER_BATCH) {
         files.push(lastPageImg)
       }
+      if (files.length > MAX_FILES_PER_BATCH) {
+        throw new Error(`배치 구성 오류: ${typeKr} ${group.map((g) => g.order).join("-")} 그룹이 ${files.length}개로 Slack 한 메시지당 최대 ${MAX_FILES_PER_BATCH}장 제한 초과`)
+      }
       const labelSuffix = group.length === 2
         ? `${group[0].order}-${group[1].order}`
         : `${group[0].order}`
@@ -102,9 +105,11 @@ export function groupIntoBatches<T extends { name: string }>(
   return batches
 }
 
+const MAX_IMAGES_PER_ARTICLE = Math.floor(MAX_FILES_PER_BATCH / 2)
+
 function collectArticleImages<T extends { name: string }>(prefix: string, byName: Map<string, T>): T[] {
   const out: T[] = []
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_IMAGES_PER_ARTICLE; i++) {
     const img = byName.get(`${prefix}-${i}.png`)
     if (img) out.push(img)
     else break

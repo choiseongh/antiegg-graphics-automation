@@ -71,14 +71,49 @@ export async function POST(request: NextRequest) {
 
     const parent = await postMessage(channel, plan.parentText)
     const resolvedChannel = parent.channel
-    await uploadFilesToThread(resolvedChannel, parent.ts, [
-      { filename: plan.zipFilename, buffer: zipBuffer },
-    ])
 
-    for (const batch of plan.batches) {
+    try {
+      await uploadFilesToThread(resolvedChannel, parent.ts, [
+        { filename: plan.zipFilename, buffer: zipBuffer },
+      ])
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      await safePostReply(resolvedChannel, parent.ts, `⚠ ZIP 업로드 실패: ${msg}`)
+      const permalink = await getPermalink(resolvedChannel, parent.ts)
+      return NextResponse.json(
+        { ok: false, error: "ZIP 업로드 실패", permalink, threadTs: parent.ts, channel: resolvedChannel, failedAt: "zip" },
+        { status: 207 },
+      )
+    }
+
+    for (let i = 0; i < plan.batches.length; i++) {
+      const batch = plan.batches[i]
       const files = batch.files.map((f) => ({ filename: f.name, buffer: f.buffer }))
-      await uploadFilesToThread(resolvedChannel, parent.ts, files)
-      await sleep(200)
+      try {
+        await uploadFilesToThread(resolvedChannel, parent.ts, files)
+        await sleep(200)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        await safePostReply(
+          resolvedChannel,
+          parent.ts,
+          `⚠ 배치 ${i + 1}/${plan.batches.length} (${batch.label}) 업로드 실패: ${msg}`,
+        )
+        const permalink = await getPermalink(resolvedChannel, parent.ts)
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `배치 ${i + 1}/${plan.batches.length} 업로드 실패: ${msg}`,
+            permalink,
+            threadTs: parent.ts,
+            channel: resolvedChannel,
+            failedAt: `batch-${i + 1}`,
+            batchLabel: batch.label,
+            completedBatches: i,
+          },
+          { status: 207 },
+        )
+      }
     }
 
     await postMessage(resolvedChannel, plan.finalMessage, parent.ts)
@@ -123,4 +158,12 @@ async function buildZipBuffer(images: { name: string; buffer: Buffer }[]): Promi
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+async function safePostReply(channel: string, thread_ts: string, text: string): Promise<void> {
+  try {
+    await postMessage(channel, text, thread_ts)
+  } catch {
+    // 실패 마커 전송도 실패하면 조용히 삼킨다 — 주 에러는 상위에서 반환됨
+  }
 }

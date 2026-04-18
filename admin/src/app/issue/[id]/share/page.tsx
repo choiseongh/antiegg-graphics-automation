@@ -175,7 +175,7 @@ export default function SharePage() {
       {loadingPreviews && (
         <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <Spinner className="h-4 w-4" />
-          <span className="text-sm text-zinc-600 dark:text-zinc-300">이미지를 렌더링하고 있습니다... 20~30초 정도 걸려요.</span>
+          <span className="text-sm text-zinc-600 dark:text-zinc-300">이미지를 렌더링하고 있습니다... 1~2분 정도 걸려요.</span>
         </div>
       )}
 
