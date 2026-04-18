@@ -64,12 +64,13 @@ const initialState: IssueState = {
 function issueReducer(state: IssueState, action: IssueAction): IssueState {
   switch (action.type) {
     case "SET_ARTICLES": {
-      const { issue, date, articles } = action.payload
+      const { issue, date, articles, newsletter } = action.payload
       return {
         ...state,
         issue,
         date,
         articles: articles.map(rawToEdit),
+        newsletter: newsletter ?? state.newsletter,
         activeArticleIndex: 0,
         activeTab: "story",
         status: "ordering",

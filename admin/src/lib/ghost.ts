@@ -39,6 +39,11 @@ export async function fetchPostBySlug(slug: string): Promise<GhostPost | null> {
   return posts[0] ?? null
 }
 
+export function extractFirstImage(html: string): string {
+  const match = /<img[^>]+src=["']([^"']+)["']/i.exec(html)
+  return match?.[1] ?? ""
+}
+
 export function extractIntro(html: string): string {
   const stopTagPattern = /<(h2|h3|h4|hr)\b/i
   const pTagPattern = /<p[^>]*>([\s\S]*?)<\/p>/gi

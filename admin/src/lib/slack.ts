@@ -1,4 +1,5 @@
-import type { ArticleType } from "./types"
+import type { ArticleType, NewsletterData } from "./types"
+import { splitToTwoLines } from "./text-processing"
 
 const SLACK_CHANNEL_ID = "C03CXG0P6A3"
 
@@ -7,28 +8,80 @@ interface SlackOrderItem {
   title: string
 }
 
-export async function fetchSlackArticleOrder(issue: number): Promise<SlackOrderItem[]> {
+export async function fetchSlackIssueMessage(issue: number): Promise<string | null> {
   const slackToken = process.env.SLACK_BOT_TOKEN
-  if (!slackToken) return []
+  if (!slackToken) return null
 
   const resp = await fetch(
     `https://slack.com/api/conversations.history?channel=${SLACK_CHANNEL_ID}&limit=100`,
     { headers: { Authorization: `Bearer ${slackToken}` } },
   )
 
-  if (!resp.ok) return []
+  if (!resp.ok) return null
 
   const data = await resp.json()
-  if (!data.ok) return []
+  if (!data.ok) return null
 
   const messages: { text: string }[] = data.messages ?? []
   const target = messages.find((m) =>
     m.text.includes(`${issue}호 뉴스레터`) && m.text.includes("[제목]"),
   )
 
-  if (!target) return []
+  return target?.text ?? null
+}
 
-  return parseArticleOrder(target.text)
+export async function fetchSlackArticleOrder(issue: number): Promise<SlackOrderItem[]> {
+  const text = await fetchSlackIssueMessage(issue)
+  return text ? parseArticleOrder(text) : []
+}
+
+export function parseNewsletterFields(text: string): NewsletterData {
+  let title = ""
+  const titleSection = text.split("[제목]")[1] ?? ""
+  const titleMatch = titleSection.match(/:egg:\s*(.+?)(?:\n|$)/)
+  if (titleMatch) {
+    title = titleMatch[1].trim()
+  }
+
+  let intro = ""
+  const introStart = text.indexOf("[서문]")
+  const introEnd = text.indexOf("[아티클 순서]")
+
+  if (introStart !== -1) {
+    const introSection = introEnd !== -1
+      ? text.slice(introStart, introEnd)
+      : text.slice(introStart)
+
+    const introLines = introSection.split("\n")
+    const bodyLines: string[] = []
+    let foundFirstLine = false
+
+    for (const line of introLines) {
+      const cleaned = line.replace(/^(?:&gt;|>)\s*/, "").trim()
+      if (!cleaned || cleaned.startsWith("[서문]")) continue
+
+      if (!foundFirstLine) {
+        if (cleaned.includes("ANTIEGG") && cleaned.includes("페르소나")) {
+          foundFirstLine = true
+          continue
+        }
+        foundFirstLine = true
+      }
+
+      if (cleaned.startsWith(":books:")) break
+      bodyLines.push(cleaned)
+    }
+
+    const joined = bodyLines.join(" ").trim()
+    const lastSentenceMatch = joined.match(/^(.*[.!?…]\s*)([^.!?…]+[.!?…]*)$/)
+    if (lastSentenceMatch && lastSentenceMatch[2].trim()) {
+      intro = `${lastSentenceMatch[1]}**${lastSentenceMatch[2].trim()}**`
+    } else {
+      intro = joined
+    }
+  }
+
+  return { title: splitToTwoLines(title), intro, publisher: "형운" }
 }
 
 const TYPE_MAP: Record<string, ArticleType> = {

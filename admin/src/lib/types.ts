@@ -37,6 +37,7 @@ export interface FetchArticlesResponse {
   issue: number
   date: string
   articles: RawArticle[]
+  newsletter?: NewsletterData | null
 }
 
 export interface ProcessTextRequest {
@@ -90,7 +91,7 @@ export interface IssueState {
 }
 
 export type IssueAction =
-  | { type: "SET_ARTICLES"; payload: { issue: number; date: string; articles: RawArticle[] } }
+  | { type: "SET_ARTICLES"; payload: { issue: number; date: string; articles: RawArticle[]; newsletter?: NewsletterData | null } }
   | { type: "REORDER_ARTICLES"; payload: { articleType: ArticleType; fromIndex: number; toIndex: number } }
   | { type: "UPDATE_ARTICLE"; payload: { index: number; updates: Partial<EditArticle> } }
   | { type: "SET_ACTIVE_ARTICLE"; payload: number }
