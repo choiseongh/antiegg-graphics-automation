@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { chromium } from "playwright"
+import type { Browser } from "playwright"
 import path from "path"
 import os from "os"
 import fs from "fs"
@@ -69,7 +69,7 @@ async function downloadImage(url: string, tmpDir: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  let browser = null
+  let browser: Browser | null = null
 
   try {
     const body: SingleExportRequest = await request.json()
@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid cardType" }, { status: 400 })
     }
 
+    const { chromium } = await import("playwright")
     browser = await chromium.launch({ headless: true })
     const tmpFile = path.join(tmpDir, "render.html")
     fs.writeFileSync(tmpFile, html, "utf-8")

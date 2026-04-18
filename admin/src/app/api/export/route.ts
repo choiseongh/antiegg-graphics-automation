@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { chromium } from "playwright"
+import type { Browser } from "playwright"
 import archiver from "archiver"
 import { Readable } from "stream"
 import path from "path"
@@ -51,7 +51,7 @@ async function downloadImage(url: string, tmpDir: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  let browser = null
+  let browser: Browser | null = null
 
   try {
     const body: ExportRequest = await request.json()
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     const assetsDir = path.resolve(process.cwd(), "public/assets")
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "antiegg-export-"))
 
+    const { chromium } = await import("playwright")
     browser = await chromium.launch({ headless: true })
 
     const archive = archiver("zip", { zlib: { level: 6 } })
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function renderToPng(
-  browser: Awaited<ReturnType<typeof chromium.launch>>,
+  browser: Browser,
   html: string,
   width: number,
   height: number,
