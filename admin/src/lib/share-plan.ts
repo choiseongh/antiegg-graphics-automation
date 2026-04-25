@@ -13,7 +13,7 @@ interface PlanInput {
   issue: number
   date: string
   articles: { type: string; order: number; editor: string }[]
-  recipients: { primary: string; cc: string[] }
+  recipients: { primary: string; cc: string[]; contactForFixes: string }
   editorResolvedIds: Record<string, string>
   unmatchedEditors: string[]
   renderedImages: RenderedImage[]
@@ -30,7 +30,7 @@ export function buildSharePlan(input: PlanInput): SharePlan {
     parentText: buildParentText(issue, recipients.primary, recipients.cc),
     zipFilename: `${issue}호_${date}.zip`,
     batches,
-    finalMessage: buildFinalMessage(articles, editorResolvedIds),
+    finalMessage: buildFinalMessage(articles, editorResolvedIds, recipients.contactForFixes),
     totalImages: renderedImages.length,
   }
 }

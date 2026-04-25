@@ -17,6 +17,7 @@ const PROD_CHANNEL_ID = "C03DCFTULG5"
 const RECIPIENTS = {
   primary: "U03CXG0SAP9",
   cc: ["U03DF6UL0P5", "U03D0JK7FEK"],
+  contactForFixes: "U08677ZHPNF",
 }
 
 interface Body {

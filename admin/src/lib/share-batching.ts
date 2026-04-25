@@ -125,10 +125,11 @@ export function buildParentText(issue: number, primary: string, cc: string[]): s
 export function buildFinalMessage(
   articles: { editor: string }[],
   resolvedIds: Record<string, string>,
+  contactForFixes: string,
 ): string {
   const mentions = articles.map((a) => {
     const id = resolvedIds[a.editor]
     return id ? `<@${id}>` : `@${a.editor}`
   }).join(" ")
-  return `아티클 작성자 : ${mentions}`
+  return `아티클 작성자 : ${mentions}\n\n*수정사항 요청시 담당자 <@${contactForFixes}> 멘션*`
 }
