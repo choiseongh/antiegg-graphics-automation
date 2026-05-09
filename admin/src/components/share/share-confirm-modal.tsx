@@ -29,7 +29,7 @@ export function ShareConfirmModal({
         </h3>
         <div className="mb-5 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800">
           <p className="mb-1 font-semibold text-zinc-800 dark:text-zinc-200">
-            <span className="font-bold">#1-팀-크리에이티브</span>에 전송됩니다
+            <span className="font-bold">#0-팀-매거진</span>에 전송됩니다
           </p>
           <p className="mt-2 whitespace-pre-wrap text-xs text-zinc-600 dark:text-zinc-400">
             [{issue}호] 그래픽 및 썸네일 공유드립니다. @형운 cc. @문수진 @이재은{"\n"}

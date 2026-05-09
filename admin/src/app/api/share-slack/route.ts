@@ -13,7 +13,7 @@ import {
 } from "@/lib/slack-share"
 import type { EditArticle, NewsletterData } from "@/lib/types"
 
-const PROD_CHANNEL_ID = "C03DCFTULG5"
+const PROD_CHANNEL_ID = "C03CXG0P6A3"
 const RECIPIENTS = {
   primary: "U03CXG0SAP9",
   cc: ["U03DF6UL0P5", "U03D0JK7FEK"],
